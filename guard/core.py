@@ -55,20 +55,23 @@ Read ``guard.toml`` or a ``[tool.guard]`` section in ``pyproject.toml`` so
 teams can version-control their guard settings without changing application
 code.
 
-**Phase 3 — Node.js / Go / Rust ports** (planned).
-A thin language-specific shim will call a shared Rust core (compiled to
-a native extension or WASM) so the same protection logic runs across
-ecosystems with a single ``activate()`` call per language.
+**Phase 3 — Rust core & multi-language wrappers** (planned).
+Port the core engine to a Rust crate (``guard-core``).  The Python package
+becomes a thin PyO3 binding over the shared Rust library.  Node.js (napi-rs)
+and Go (cgo) wrappers are published through their native package managers.
+Each ecosystem gets a single ``activate()`` call.  See ``ARCHITECTURE.md``.
 
 **Phase 4 — CI/CD integration** (planned).
 A ``guard audit`` CLI command will scan a project's dependency tree and
 return a non-zero exit code when vulnerabilities are found, enabling
 gate-keeping in GitHub Actions / GitLab CI / Jenkins pipelines.
 
-**Phase 5 — Dashboard and alerting** (future).
+**Phase 5 — Dashboard, alerting & AI-workflow integration** (future).
 An optional lightweight sidecar (``guard serve``) exposes a Prometheus
 metrics endpoint and a web UI showing live error counts, suppressed crash
-events, and dependency health — all with zero changes to application code.
+events, and dependency health.  Guard suggestions attach to the IDE
+diagnostic channel so AI assistants (GitHub Copilot, Cursor) can auto-fix
+flagged errors.
 """
 
 from __future__ import annotations

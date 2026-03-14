@@ -4,6 +4,12 @@ This document tracks the **current development phase** and every planned
 future phase for the project.  It is updated as features ship or priorities
 change.
 
+> **Architecture:** This project follows a **Rust-core, polyglot-wrapper**
+> pattern — a single Rust engine with thin, idiomatic wrappers for Python,
+> Node.js, Go, and more.  Python is the "front door" for early adoption;
+> Rust is the "engine room" for performance and cross-platform reach.
+> See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design document.
+
 ---
 
 ## Legend
@@ -87,20 +93,32 @@ types, and cover async / threaded code paths.
 
 ---
 
-## Phase 3 — Multi-language & CI/CD Integration 📋
+## Phase 3 — Rust Core & Multi-Language Wrappers 📋
 
-**Goal:** Extend the guard to cover Node.js, Go, and Rust projects and
-provide first-class CI/CD integration.
+**Goal:** Port the core engine to Rust and ship native wrappers for Node.js
+and Go.  Python becomes a thin PyO3 binding over the shared Rust crate.
+Each ecosystem gets a single `activate()` call published via its native
+package manager.
+
+> This follows the **Rust-core, polyglot-wrapper** architecture described in
+> [`ARCHITECTURE.md`](ARCHITECTURE.md).  The Python Phase 1 implementation
+> serves as the prototype and specification; every test becomes a contract
+> that the Rust core must satisfy.
 
 ### Planned items
 
-- [ ] **Rust core library**
-  Extract the vulnerability-matching and sanitisation logic into a Rust
-  crate so it can be compiled as a native extension (`PyO3`) for Python
-  and as a WASM module for browser/edge environments.
+- [ ] **`guard-core` Rust crate**
+  Implement the vulnerability scanner, API sanitiser, error advisor, and
+  embedded advisory database in Rust.  Compile to a native shared library
+  (`.so` / `.dylib` / `.dll`), a WASM module, and a standalone CLI binary.
 
-- [ ] **Node.js shim** (`npm install universal-runtime-guard`)
-  A thin JS wrapper around the Rust core that hooks `process.on('uncaughtException')`
+- [ ] **Python PyO3 binding**
+  Replace the pure-Python internals with calls to the compiled `guard-core`
+  library via PyO3.  The public Python API (`guard.activate()`) stays
+  identical — existing users see no change.
+
+- [ ] **Node.js wrapper** (`npm install universal-runtime-guard`)
+  A thin JS shim (via napi-rs) that hooks `process.on('uncaughtException')`
   and patches `node-fetch` / `axios`.
 
 - [ ] **Go module**
@@ -177,6 +195,12 @@ fix suggestions.
 - [ ] **Historical trend analysis**
   Persist error counts to SQLite and expose a `guard report` command that
   shows error frequency trends over the last N days.
+
+- [ ] **AI-workflow integration**
+  Attach guard suggestions to the IDE diagnostic channel so AI assistants
+  (GitHub Copilot, Cursor, etc.) can auto-fix flagged errors.  Generate a
+  `.guard` context file for AI agents and expose guard as a Model Context
+  Protocol (MCP) tool server.
 
 ---
 

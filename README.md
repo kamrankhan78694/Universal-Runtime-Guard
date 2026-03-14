@@ -201,15 +201,42 @@ including planned features and contribution guidelines.
 
 ---
 
+## Architecture
+
+Universal Runtime Guard follows a **Rust-core, polyglot-wrapper** design:
+
+```
+              guard-core  (Rust crate)
+        ┌───────┬───────┬───────┬──────────┐
+        │Python │Node.js│  Go   │ Rust/WASM│
+        │(PyO3) │(napi) │(cgo)  │ (native) │
+        └───────┴───────┴───────┴──────────┘
+```
+
+- **Python is the front door** — the largest AI developer community, the
+  fastest feedback loop, the first package shipped.
+- **Rust is the engine room** — deterministic performance, memory-safe, and
+  compiles to native binaries for every platform.
+- Each ecosystem gets an idiomatic wrapper published through its own package
+  manager (`pip`, `npm`, `go get`, `cargo`).
+
+Phase 1 (current) is a **pure-Python prototype** that codifies the
+behaviour and test contracts.  Phase 3 will port the internals to Rust and
+replace them with PyO3 bindings — the public Python API stays identical.
+
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design document.
+
+---
+
 ## Roadmap summary
 
 | Phase | Status | Highlights |
 |-------|--------|-----------|
 | **1 — Core Python package** | ✅ shipped | Static CVE DB · requests patch · heuristic advisor |
 | **2 — Config & deeper coverage** | 📋 planned | `guard.toml` · type-aware schema · threads/async |
-| **3 — Multi-language & CI/CD** | 📋 planned | Rust core · Node.js/Go shims · `guard audit` CLI |
+| **3 — Rust core & multi-language** | 📋 planned | Rust engine · PyO3 binding · Node.js/Go wrappers |
 | **4 — Live advisory DB** | 🔭 future | OSV live feed · SBOM export · licence scanning |
-| **5 — Dashboard & LLM** | 🔭 future | Prometheus metrics · alert webhooks · LLM suggestions |
+| **5 — Dashboard & LLM** | 🔭 future | Prometheus metrics · alert webhooks · AI-workflow integration |
 
 ---
 

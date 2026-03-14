@@ -34,20 +34,24 @@ Package version
 Development phases
 ------------------
 **Phase 1 (current)** — Core Python package with static vulnerability DB,
-requests monkey-patch, and heuristic error advisor.
+requests monkey-patch, and heuristic error advisor.  Python serves as the
+*front door* for early adoption.
 
 **Phase 2 (planned)** — Configuration file support, type-aware API schema
 validation, and thread/async exception coverage.
 
-**Phase 3 (planned)** — Node.js / Go / Rust language ports via shared Rust
-core; CI/CD ``guard audit`` CLI command.
+**Phase 3 (planned)** — Port core logic to a Rust crate (``guard-core``);
+replace Python internals with PyO3 bindings; ship Node.js and Go wrappers.
+Rust is the *engine room* — deterministic performance and effortless
+cross-platform distribution.
 
 **Phase 4 (planned)** — Live OSV advisory DB integration; SBOM export.
 
 **Phase 5 (future)** — Optional dashboard sidecar, remote error reporting,
-and LLM-powered fix suggestions.
+LLM-powered fix suggestions, and AI-workflow integration.
 
-See ``DEVELOPMENT.md`` for the full roadmap.
+See ``ARCHITECTURE.md`` for the Rust-core design and ``DEVELOPMENT.md`` for
+the full roadmap.
 """
 
 from guard.core import activate, deactivate
