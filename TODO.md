@@ -244,14 +244,15 @@ message for 301, 302, 307, etc.
 
 ## Test Coverage Gaps
 
-### 🧪 T-1: `advisor.py` — 15 of 24 suggestion patterns untested
+### 🧪 T-1: `advisor.py` — 10 of 18 suggestion patterns untested
+
+The `_SUGGESTIONS` list contains 18 patterns; only 8 have test coverage.
 
 **Patterns with no test coverage:**
 
 | Pattern | Description |
 |---------|-------------|
 | `unsupported operand type` | Type mismatch in arithmetic |
-| `object is not iterable/subscriptable` | Not callable/iterable |
 | `invalid literal for int()` | Value conversion |
 | `Permission denied` | File permission |
 | `Connection refused` | Network |
@@ -261,6 +262,9 @@ message for 301, 302, 307, etc.
 | `MemoryError` | Out of memory |
 | `SSL` errors | Certificate issues |
 | `Expecting value: line ...` | JSON parse errors |
+
+Additionally, the `object is not (callable|iterable|subscriptable)` pattern is
+tested for the `callable` branch only; `iterable` and `subscriptable` are not.
 
 ---
 
