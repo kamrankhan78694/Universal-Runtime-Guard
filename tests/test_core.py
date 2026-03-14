@@ -1,11 +1,14 @@
 """Tests for guard.core — the activate() / deactivate() integration."""
 import sys
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 import guard
 from guard import api_guard, error_handler
+from guard import logging as guard_logging
 from guard.core import activate, deactivate
 
 
@@ -19,10 +22,12 @@ def clean_state():
     api_guard.uninstall()
     error_handler.uninstall()
     error_handler.reset_counts()
+    guard_logging.disable()
     yield
     api_guard.uninstall()
     error_handler.uninstall()
     error_handler.reset_counts()
+    guard_logging.disable()
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +69,37 @@ def test_activate_verbose_false_no_banner(capsys):
         activate(verbose=False)
     captured = capsys.readouterr()
     assert "Universal Runtime Guard activated" not in captured.err
+
+
+def test_activate_structured_logging_from_config():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        toml_path = Path(tmpdir) / "guard.toml"
+        toml_path.write_text("structured_logging = true\n")
+        with patch("guard.dependency.run_all_scans", return_value=[]):
+            activate(
+                check_dependencies=False,
+                guard_api=False,
+                guard_errors=False,
+                verbose=False,
+                config_dir=tmpdir,
+            )
+        assert guard_logging.is_enabled() is True
+
+
+def test_activate_structured_logging_explicit_override_config():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        toml_path = Path(tmpdir) / "guard.toml"
+        toml_path.write_text("structured_logging = true\n")
+        with patch("guard.dependency.run_all_scans", return_value=[]):
+            activate(
+                check_dependencies=False,
+                guard_api=False,
+                guard_errors=False,
+                verbose=False,
+                structured_logging=False,
+                config_dir=tmpdir,
+            )
+        assert guard_logging.is_enabled() is False
 
 
 def test_activate_installs_api_guard():

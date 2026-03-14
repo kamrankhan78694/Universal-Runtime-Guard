@@ -97,7 +97,7 @@ def activate(
     guard_errors: object = _UNSET,
     auto_patch: object = _UNSET,
     verbose: object = _UNSET,
-    structured_logging: bool = False,
+    structured_logging: object = _UNSET,
     config_dir: Optional[str] = None,
 ) -> None:
     """
@@ -156,11 +156,12 @@ def activate(
     g_errors = bool(_resolve(guard_errors, "guard_errors", True))
     a_patch = bool(_resolve(auto_patch, "auto_patch", False))
     v = bool(_resolve(verbose, "verbose", True))
+    s_logging = bool(_resolve(structured_logging, "structured_logging", False))
 
     activated: list[str] = []
 
     # Structured logging
-    if structured_logging:
+    if s_logging:
         guard_logging.enable()
 
     if ck_dep:

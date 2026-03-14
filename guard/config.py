@@ -30,6 +30,7 @@ specified in the configuration file:
     guard_errors = true
     auto_patch = false
     verbose = true
+    structured_logging = false
 
     [expected_api_schema]
     id = "int"
@@ -130,6 +131,7 @@ _BOOL_KEYS = frozenset({
     "guard_errors",
     "auto_patch",
     "verbose",
+    "structured_logging",
 })
 
 

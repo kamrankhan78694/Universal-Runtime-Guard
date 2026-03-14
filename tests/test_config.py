@@ -42,12 +42,14 @@ def test_load_config_guard_toml():
             'guard_api = true\n'
             'auto_patch = true\n'
             'verbose = false\n'
+            'structured_logging = true\n'
         )
         config = load_config(directory=tmpdir)
         assert config["check_dependencies"] is False
         assert config["guard_api"] is True
         assert config["auto_patch"] is True
         assert config["verbose"] is False
+        assert config["structured_logging"] is True
 
 
 def test_load_config_guard_toml_with_schema():
