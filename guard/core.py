@@ -85,15 +85,18 @@ from guard import logging as guard_logging
 from guard.config import load_config
 
 
+_UNSET = object()
+
+
 def activate(
     *,
-    check_dependencies: bool = True,
-    check_broken: bool = False,
-    guard_api: bool = True,
-    expected_api_schema: Optional[dict] = None,
-    guard_errors: bool = True,
-    auto_patch: bool = False,
-    verbose: bool = True,
+    check_dependencies: object = _UNSET,
+    check_broken: object = _UNSET,
+    guard_api: object = _UNSET,
+    expected_api_schema: object = _UNSET,
+    guard_errors: object = _UNSET,
+    auto_patch: object = _UNSET,
+    verbose: object = _UNSET,
     structured_logging: bool = False,
     config_dir: Optional[str] = None,
 ) -> None:
@@ -137,23 +140,22 @@ def activate(
     # Load config file defaults, then overlay explicit arguments.
     file_config = load_config(directory=config_dir)
 
-    # Apply file config as defaults — explicit arguments take priority.
-    # We detect "not explicitly passed" by inspecting the call vs defaults.
-    # Since all params have defaults, we use file_config only when present.
-    if "check_dependencies" in file_config and check_dependencies is True:
-        check_dependencies = file_config["check_dependencies"]
-    if "check_broken" in file_config and check_broken is False:
-        check_broken = file_config["check_broken"]
-    if "guard_api" in file_config and guard_api is True:
-        guard_api = file_config["guard_api"]
-    if "guard_errors" in file_config and guard_errors is True:
-        guard_errors = file_config["guard_errors"]
-    if "auto_patch" in file_config and auto_patch is False:
-        auto_patch = file_config["auto_patch"]
-    if "verbose" in file_config and verbose is True:
-        verbose = file_config["verbose"]
-    if "expected_api_schema" in file_config and expected_api_schema is None:
-        expected_api_schema = file_config["expected_api_schema"]
+    # Merge: explicit arguments take priority over file config, which takes
+    # priority over built-in defaults.
+    def _resolve(explicit: object, key: str, default: object) -> object:
+        if explicit is not _UNSET:
+            return explicit
+        if key in file_config:
+            return file_config[key]
+        return default
+
+    ck_dep = bool(_resolve(check_dependencies, "check_dependencies", True))
+    ck_broken = bool(_resolve(check_broken, "check_broken", False))
+    g_api = bool(_resolve(guard_api, "guard_api", True))
+    schema = _resolve(expected_api_schema, "expected_api_schema", None)
+    g_errors = bool(_resolve(guard_errors, "guard_errors", True))
+    a_patch = bool(_resolve(auto_patch, "auto_patch", False))
+    v = bool(_resolve(verbose, "verbose", True))
 
     activated: list[str] = []
 
@@ -161,8 +163,8 @@ def activate(
     if structured_logging:
         guard_logging.enable()
 
-    if check_dependencies:
-        warnings = dependency.run_all_scans(check_broken=check_broken)
+    if ck_dep:
+        warnings = dependency.run_all_scans(check_broken=ck_broken)
         for w in warnings:
             print(w, file=sys.stderr)
             if guard_logging.is_enabled():
@@ -171,15 +173,15 @@ def activate(
                 )
         activated.append("dependency scanner")
 
-    if guard_api:
-        api_guard.install(expected_schema=expected_api_schema)
+    if g_api:
+        api_guard.install(expected_schema=schema if isinstance(schema, dict) else None)
         activated.append("API guard")
 
-    if guard_errors:
-        error_handler.install(auto_patch=auto_patch)
+    if g_errors:
+        error_handler.install(auto_patch=a_patch)
         activated.append("error handler")
 
-    if verbose:
+    if v:
         layers = ", ".join(activated) if activated else "none"
         print(
             f"🛡️  Universal Runtime Guard activated — layers: {layers}",

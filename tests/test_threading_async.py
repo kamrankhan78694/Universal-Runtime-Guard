@@ -53,6 +53,7 @@ def test_thread_exception_counted(capsys):
     t = threading.Thread(target=worker)
     t.start()
     t.join(timeout=5)
+    assert not t.is_alive(), "Thread did not finish within timeout"
 
     counts = error_handler.error_counts()
     assert counts.get("RuntimeError", 0) >= 1
@@ -68,6 +69,7 @@ def test_thread_exception_report(capsys):
     t = threading.Thread(target=worker)
     t.start()
     t.join(timeout=5)
+    assert not t.is_alive(), "Thread did not finish within timeout"
 
     captured = capsys.readouterr()
     assert "ValueError" in captured.err

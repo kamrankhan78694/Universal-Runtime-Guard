@@ -27,6 +27,15 @@ pip install universal-runtime-guard
 > **Python ≥ 3.8 required.**  No mandatory runtime dependencies.
 > `requests` is patched automatically *if it is installed*, but it is not required.
 
+For configuration file support (`guard.toml`) on Python < 3.11, install with:
+
+```bash
+pip install universal-runtime-guard[toml]
+```
+
+Python 3.11+ includes `tomllib` in the standard library and does not need
+the extra.
+
 ---
 
 ## Quick start

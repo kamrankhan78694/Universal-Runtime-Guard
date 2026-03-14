@@ -216,7 +216,8 @@ def _guard_async_exception_handler(
     task_name = ""
     task = context.get("task")
     if task is not None:
-        task_name = getattr(task, "get_name", lambda: str(task))()
+        name_getter = getattr(task, "get_name", None)
+        task_name = name_getter() if name_getter else str(task)
 
     print(f"\n{'─' * 60}", file=sys.stderr)
     header = f"🛡️  Universal Runtime Guard — Unhandled {type_name}"

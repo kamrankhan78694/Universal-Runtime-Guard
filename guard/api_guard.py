@@ -145,9 +145,6 @@ def _validate_schema(
 
     # If schema is a dict, validate keys and recurse.
     if isinstance(schema, dict):
-        data_keys = set(data.keys()) if isinstance(data, dict) else set()
-        schema_keys = set(schema.keys())
-
         if not isinstance(data, dict):
             _warn(
                 f"⚠️  Detected API schema mismatch: response from "
@@ -155,6 +152,9 @@ def _validate_schema(
                 f"expected dict, got {type(data).__name__}"
             )
             return
+
+        data_keys = set(data.keys())
+        schema_keys = set(schema.keys())
 
         missing = schema_keys - data_keys
         extra = data_keys - schema_keys
