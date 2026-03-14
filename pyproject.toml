@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "universal-runtime-guard"
+version = "0.1.0"
+description = "A single dependency that automatically prevents crashes, security exploits, and bad API responses in production."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+keywords = ["security", "runtime", "guard", "monitoring", "dependency", "api"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+# requests is an optional but highly recommended dependency; guard will
+# silently skip API patching if it is not installed.
+dependencies = []
+
+[project.optional-dependencies]
+requests = ["requests>=2.21.0"]
+dev = [
+    "requests>=2.21.0",
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "responses>=0.23",
+]
+
+[project.urls]
+Homepage = "https://github.com/kamrankhan78694/Universal-Runtime-Guard"
+Issues   = "https://github.com/kamrankhan78694/Universal-Runtime-Guard/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["guard*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts   = "-v --tb=short"
