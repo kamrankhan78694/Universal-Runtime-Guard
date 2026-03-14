@@ -15,7 +15,12 @@ After calling ``activate()`` the guard:
 * scans installed packages for known CVEs and blocked packages (stderr);
 * patches ``requests`` so every HTTP response is validated and sanitised;
 * installs an enriched ``sys.excepthook`` that prints actionable fix
-  suggestions alongside every unhandled exception traceback.
+  suggestions alongside every unhandled exception traceback;
+* installs ``threading.excepthook`` for worker-thread coverage;
+* optionally emits structured JSON log records for log aggregators.
+
+Settings can be loaded from ``guard.toml`` or ``pyproject.toml [tool.guard]``
+so teams can version-control their configuration without changing code.
 
 Public API
 ----------
@@ -29,21 +34,19 @@ Package version
 .. data:: __version__
    :type: str
 
-   Current release version string (e.g. ``"0.1.0"``).
+   Current release version string (e.g. ``"0.2.0"``).
 
 Development phases
 ------------------
-**Phase 1 (current)** — Core Python package with static vulnerability DB,
-requests monkey-patch, and heuristic error advisor.  Python serves as the
-*front door* for early adoption.
+**Phase 1 (shipped)** — Core Python package with static vulnerability DB,
+requests monkey-patch, and heuristic error advisor.
 
-**Phase 2 (planned)** — Configuration file support, type-aware API schema
-validation, and thread/async exception coverage.
+**Phase 2 (current)** — Configuration file support, type-aware API schema
+validation, thread/async exception coverage, ``guard audit`` CLI command,
+and structured logging output.
 
 **Phase 3 (planned)** — Port core logic to a Rust crate (``guard-core``);
 replace Python internals with PyO3 bindings; ship Node.js and Go wrappers.
-Rust is the *engine room* — deterministic performance and effortless
-cross-platform distribution.
 
 **Phase 4 (planned)** — Live OSV advisory DB integration; SBOM export.
 
@@ -64,4 +67,4 @@ __all__ = [
     "reset_counts",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

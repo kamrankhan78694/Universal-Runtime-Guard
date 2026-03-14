@@ -18,6 +18,11 @@ intercepted exception it:
    intended for long-running services that should degrade gracefully rather
    than crash.  :class:`SystemExit` and :class:`KeyboardInterrupt` are
    *always* forwarded to the original hook regardless of this setting.
+5. **Thread exception coverage** — installs ``threading.excepthook``
+   (Python 3.8+) so uncaught exceptions in worker threads get the same
+   rich reporting.
+6. **Asyncio task exception coverage** — sets a custom loop exception handler
+   so uncaught exceptions in async tasks are treated identically.
 
 Installation / removal
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -34,17 +39,13 @@ Direct usage::
 
 Current phase
 -------------
-**Phase 1 — Global excepthook replacement** (shipped).
-A single ``sys.excepthook`` captures all unhandled exceptions in the main
-thread.  Suggestions come from the static rule set in :mod:`guard.advisor`.
+**Phase 2 — Thread and async-task coverage** (shipped).
+``threading.excepthook`` and ``asyncio`` loop exception handlers are
+installed alongside the main-thread ``sys.excepthook``, giving uniform
+error reporting across all execution contexts.
 
 Next phases
 -----------
-**Phase 2 — Thread and async-task coverage** (planned).
-``threading.excepthook`` (Python 3.8+) and ``asyncio`` loop exception
-handlers will be patched so uncaught exceptions in worker threads and
-async tasks receive the same treatment.
-
 **Phase 3 — Structured logging integration** (planned).
 Emit errors as JSON log records (compatible with ``structlog`` and the
 standard ``logging`` module) in addition to the human-readable stderr
@@ -64,7 +65,9 @@ enabling cross-instance error correlation.
 
 from __future__ import annotations
 
+import asyncio
 import sys
+import threading
 import traceback
 from typing import Any, Optional, Type
 
@@ -76,6 +79,7 @@ from guard import advisor
 # ---------------------------------------------------------------------------
 
 _original_excepthook: Any = sys.__excepthook__
+_original_threading_excepthook: Any = None
 _installed = False
 
 # Counts of caught exceptions, keyed by exception type name.
@@ -132,6 +136,111 @@ def _guard_excepthook(
 
 
 # ---------------------------------------------------------------------------
+# Threading excepthook (Python 3.8+)
+# ---------------------------------------------------------------------------
+
+def _guard_threading_excepthook(args: Any) -> None:
+    """Handle uncaught exceptions in worker threads."""
+    exc_type = args.exc_type
+    exc_value = args.exc_value
+    exc_tb = args.exc_traceback
+
+    if issubclass(exc_type, (SystemExit, KeyboardInterrupt)):
+        if _original_threading_excepthook is not None:
+            _original_threading_excepthook(args)
+        return
+
+    type_name = exc_type.__name__
+    _error_counts[type_name] = _error_counts.get(type_name, 0) + 1
+
+    thread_name = args.thread.name if args.thread else "unknown"
+    lines = traceback.format_exception(exc_type, exc_value, exc_tb)
+    tb_text = "".join(lines).rstrip()
+
+    print(f"\n{'─' * 60}", file=sys.stderr)
+    print(
+        f"🛡️  Universal Runtime Guard — Unhandled {type_name} "
+        f"in thread '{thread_name}'",
+        file=sys.stderr,
+    )
+    print(f"{'─' * 60}", file=sys.stderr)
+    print(tb_text, file=sys.stderr)
+
+    suggestion = advisor.suggest(exc_type, exc_value)
+    if suggestion:
+        print(f"\n{suggestion}", file=sys.stderr)
+
+    if _auto_patch:
+        print(
+            f"\n⚙️  Auto-patched: suppressing crash (auto_patch=True). "
+            f"Total {type_name} suppressions: {_error_counts[type_name]}",
+            file=sys.stderr,
+        )
+    else:
+        print(f"{'─' * 60}\n", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Asyncio exception handler
+# ---------------------------------------------------------------------------
+
+def _guard_async_exception_handler(
+    loop: asyncio.AbstractEventLoop,
+    context: dict[str, Any],
+) -> None:
+    """Handle uncaught exceptions in asyncio tasks."""
+    exception = context.get("exception")
+    if exception is None:
+        # Not an exception-based event; use default handling.
+        loop.default_exception_handler(context)
+        return
+
+    exc_type = type(exception)
+    type_name = exc_type.__name__
+
+    if isinstance(exception, (SystemExit, KeyboardInterrupt)):
+        loop.default_exception_handler(context)
+        return
+
+    _error_counts[type_name] = _error_counts.get(type_name, 0) + 1
+
+    tb_text = ""
+    if exception.__traceback__:
+        lines = traceback.format_exception(
+            exc_type, exception, exception.__traceback__,
+        )
+        tb_text = "".join(lines).rstrip()
+    else:
+        tb_text = f"{type_name}: {exception}"
+
+    task_name = ""
+    task = context.get("task")
+    if task is not None:
+        task_name = getattr(task, "get_name", lambda: str(task))()
+
+    print(f"\n{'─' * 60}", file=sys.stderr)
+    header = f"🛡️  Universal Runtime Guard — Unhandled {type_name}"
+    if task_name:
+        header += f" in task '{task_name}'"
+    print(header, file=sys.stderr)
+    print(f"{'─' * 60}", file=sys.stderr)
+    print(tb_text, file=sys.stderr)
+
+    suggestion = advisor.suggest(exc_type, exception)
+    if suggestion:
+        print(f"\n{suggestion}", file=sys.stderr)
+
+    if _auto_patch:
+        print(
+            f"\n⚙️  Auto-patched: suppressing crash (auto_patch=True). "
+            f"Total {type_name} suppressions: {_error_counts[type_name]}",
+            file=sys.stderr,
+        )
+    else:
+        print(f"{'─' * 60}\n", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -147,18 +256,31 @@ def install(auto_patch: bool = False) -> None:
         for long-running services where you want to log and continue rather
         than crash.
     """
-    global _installed, _auto_patch
+    global _installed, _auto_patch, _original_threading_excepthook
     if _installed:
         return
     _auto_patch = auto_patch
+
+    # Main-thread excepthook
     sys.excepthook = _guard_excepthook
+
+    # Thread excepthook (Python 3.8+)
+    _original_threading_excepthook = threading.excepthook
+    threading.excepthook = _guard_threading_excepthook
+
     _installed = True
 
 
 def uninstall() -> None:
-    """Restore the original ``sys.excepthook``."""
-    global _installed
+    """Restore the original ``sys.excepthook`` and threading/asyncio hooks."""
+    global _installed, _original_threading_excepthook
     sys.excepthook = _original_excepthook
+
+    # Restore threading excepthook
+    if _original_threading_excepthook is not None:
+        threading.excepthook = _original_threading_excepthook
+        _original_threading_excepthook = None
+
     _installed = False
 
 

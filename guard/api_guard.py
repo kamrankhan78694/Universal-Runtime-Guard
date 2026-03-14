@@ -43,10 +43,10 @@ Only the ``requests`` library is patched.  Schema validation is key-based
 
 Next phases
 -----------
-**Phase 2 — Type-aware schema validation** (planned).
-Extend schema checking to validate value types (``{"id": int, "name": str}``)
-and nested structures so mismatches are caught at the field level.  In
-Phase 1 schema values are ignored — only key presence/absence is checked.
+**Phase 2 — Type-aware and nested schema validation** (shipped).
+Schema values can now be Python types (``{"id": int, "name": str}``).
+Both presence *and* type of each key are validated.  Nested dicts and list
+schemas (``{"users": [{"id": int}]}``) are supported recursively.
 
 **Phase 3 — httpx / aiohttp support** (planned).
 Provide equivalent async-compatible wrappers for ``httpx.AsyncClient`` and
@@ -90,6 +90,93 @@ def _sanitize_value(value: Any) -> Any:
 
 def _warn(message: str) -> None:
     print(message, file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Schema validation (type-aware + nested)
+# ---------------------------------------------------------------------------
+
+def _validate_schema(
+    data: Any,
+    schema: Any,
+    url: str,
+    path: str = "",
+) -> None:
+    """
+    Recursively validate *data* against *schema*.
+
+    Schema conventions:
+
+    * ``None`` — only check that the key exists (Phase 1 compat).
+    * A Python type (``int``, ``str``, …) — check existence **and** type.
+    * A ``dict`` — recurse into nested keys.
+    * A ``list`` containing one dict element — validate every item in the
+      response list against the inner dict schema.
+    """
+    # If schema is a type, validate the type of the value.
+    if isinstance(schema, type):
+        if not isinstance(data, schema):
+            _warn(
+                f"⚠️  Detected API schema mismatch: response from "
+                f"{url} has wrong type at '{path or '<root>'}': "
+                f"expected {schema.__name__}, got {type(data).__name__}"
+            )
+        return
+
+    # If schema is None, any value is acceptable (key-existence check only).
+    if schema is None:
+        return
+
+    # If schema is a list with a single dict element, validate each item.
+    if isinstance(schema, list):
+        if len(schema) == 1 and isinstance(schema[0], dict):
+            if not isinstance(data, list):
+                _warn(
+                    f"⚠️  Detected API schema mismatch: response from "
+                    f"{url} has wrong type at '{path or '<root>'}': "
+                    f"expected list, got {type(data).__name__}"
+                )
+                return
+            item_schema = schema[0]
+            for i, item in enumerate(data):
+                item_path = f"{path}[{i}]" if path else f"[{i}]"
+                _validate_schema(item, item_schema, url, path=item_path)
+        return
+
+    # If schema is a dict, validate keys and recurse.
+    if isinstance(schema, dict):
+        data_keys = set(data.keys()) if isinstance(data, dict) else set()
+        schema_keys = set(schema.keys())
+
+        if not isinstance(data, dict):
+            _warn(
+                f"⚠️  Detected API schema mismatch: response from "
+                f"{url} has wrong type at '{path or '<root>'}': "
+                f"expected dict, got {type(data).__name__}"
+            )
+            return
+
+        missing = schema_keys - data_keys
+        extra = data_keys - schema_keys
+        if missing:
+            prefix = f"{path}." if path else ""
+            _warn(
+                f"⚠️  Detected API schema mismatch: response from "
+                f"{url} is missing expected keys: "
+                f"{sorted(prefix + k for k in missing)}"
+            )
+        if extra:
+            prefix = f"{path}." if path else ""
+            _warn(
+                f"⚠️  Detected API schema mismatch: response from "
+                f"{url} contains unexpected keys: "
+                f"{sorted(prefix + k for k in extra)}"
+            )
+
+        # Recurse into shared keys for type / nested validation.
+        for key in schema_keys & data_keys:
+            child_path = f"{path}.{key}" if path else key
+            _validate_schema(data[key], schema[key], url, path=child_path)
 
 
 # ---------------------------------------------------------------------------
@@ -151,20 +238,9 @@ class _GuardedResponse:
             return
 
         if self._expected_schema is not None:
-            missing = set(self._expected_schema) - set(data if isinstance(data, dict) else {})
-            extra = set(data if isinstance(data, dict) else {}) - set(self._expected_schema)
-            if missing:
-                _warn(
-                    f"⚠️  Detected API schema mismatch: response from "
-                    f"{self._response.url} is missing expected keys: "
-                    f"{sorted(missing)}"
-                )
-            if extra:
-                _warn(
-                    f"⚠️  Detected API schema mismatch: response from "
-                    f"{self._response.url} contains unexpected keys: "
-                    f"{sorted(extra)}"
-                )
+            _validate_schema(
+                data, self._expected_schema, self._response.url, path="",
+            )
 
     # ------------------------------------------------------------------
     # Sanitised json() shortcut
