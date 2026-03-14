@@ -23,7 +23,7 @@ change.
 
 ---
 
-## Phase 1 — Core Python Package ✅ (current)
+## Phase 1 — Core Python Package ✅
 
 **Goal:** Deliver a working, installable Python package that can be activated
 with a single `guard.activate()` call.
@@ -53,43 +53,23 @@ with a single `guard.activate()` call.
 
 ---
 
-## Phase 2 — Configuration & Deeper Coverage 📋
+## Phase 2 — Configuration & Deeper Coverage ✅ (current)
 
 **Goal:** Let teams configure guard via a file, extend API validation to
 types, and cover async / threaded code paths.
 
-### Planned items
+### Shipped features
 
-- [ ] **`guard.toml` / `pyproject.toml [tool.guard]` support**
-  Read settings (which layers to enable, schema paths, auto_patch, etc.)
-  from a project config file so developers don't need to change application
-  code.
-
-- [ ] **Type-aware API schema validation**
-  Extend `api_guard.expected_schema` to accept `{"field": <type>}` and
-  validate both presence *and* type of each key.
-
-- [ ] **Nested / list schema validation**
-  Support `{"users": [{"id": int, "name": str}]}` schemas for deeply
-  nested API responses.
-
-- [ ] **Thread exception coverage**
-  Install `threading.excepthook` (Python 3.8+) to catch exceptions in
-  worker threads with the same rich reporting.
-
-- [ ] **Asyncio task exception coverage**
-  Set a custom `loop.set_exception_handler` so uncaught exceptions in
-  async tasks are treated identically to main-thread exceptions.
-
-- [ ] **`guard audit` CLI command**
-  A standalone command (`python -m guard audit`) that scans the project's
-  `requirements.txt` / `pyproject.toml` and exits non-zero when
-  vulnerabilities are found, enabling CI/CD gate-keeping.
-
-- [ ] **Structured logging output**
-  Emit errors as JSON log records compatible with `structlog` and
-  `logging.handlers` so log aggregators (Datadog, Loki, CloudWatch) can
-  index guard events.
+| Feature | Module | Status |
+|---------|--------|--------|
+| `guard.toml` / `pyproject.toml [tool.guard]` support | `guard/config.py` | ✅ |
+| Type-aware API schema validation | `guard/api_guard.py` | ✅ |
+| Nested / list schema validation | `guard/api_guard.py` | ✅ |
+| Thread exception coverage (`threading.excepthook`) | `guard/error_handler.py` | ✅ |
+| Asyncio task exception coverage | `guard/error_handler.py` | ✅ |
+| `guard audit` CLI command | `guard/__main__.py` | ✅ |
+| Structured logging output (JSON) | `guard/logging.py` | ✅ |
+| 85-test pytest suite (100 % pass) | `tests/` | ✅ |
 
 ---
 

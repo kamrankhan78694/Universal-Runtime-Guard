@@ -27,6 +27,15 @@ pip install universal-runtime-guard
 > **Python ≥ 3.8 required.**  No mandatory runtime dependencies.
 > `requests` is patched automatically *if it is installed*, but it is not required.
 
+For configuration file support (`guard.toml`) on Python < 3.11, install with:
+
+```bash
+pip install universal-runtime-guard[toml]
+```
+
+Python 3.11+ includes `tomllib` in the standard library and does not need
+the extra.
+
 ---
 
 ## Quick start
@@ -92,10 +101,12 @@ Activate all (or selected) protection layers.
 | `check_dependencies` | `bool` | `True` | Scan installed packages for CVEs and blocked packages |
 | `check_broken` | `bool` | `False` | Also try to import every installed package to detect broken ones (slower) |
 | `guard_api` | `bool` | `True` | Monkey-patch `requests` to validate and sanitise responses |
-| `expected_api_schema` | `dict \| None` | `None` | Keys the JSON API response must contain (values are ignored in Phase 1); extra/missing keys trigger a warning |
-| `guard_errors` | `bool` | `True` | Install the enriched `sys.excepthook` |
+| `expected_api_schema` | `dict \| None` | `None` | Schema describing expected JSON API response structure; supports type checking (`int`, `str`, …), nested dicts, and list-of-object schemas (`[{…}]`) |
+| `guard_errors` | `bool` | `True` | Install enriched `sys.excepthook`, `threading.excepthook`, and asyncio exception handler |
 | `auto_patch` | `bool` | `False` | Suppress (instead of re-raise) non-fatal unhandled exceptions — use only in long-running services |
 | `verbose` | `bool` | `True` | Print the startup banner |
+| `structured_logging` | `bool` | `False` | Emit guard events as structured JSON log records to *stderr* |
+| `config_dir` | `str \| None` | `None` | Directory to search for `guard.toml` or `pyproject.toml`; defaults to cwd |
 
 ### `guard.deactivate()`
 
@@ -132,12 +143,103 @@ guard.activate(guard_api=False, guard_errors=False)
 # Only the error handler — useful when you manage HTTP yourself.
 guard.activate(check_dependencies=False, guard_api=False)
 
-# API guard with an expected response schema.
+# API guard with a type-aware response schema.
 guard.activate(
     check_dependencies=False,
     guard_errors=False,
-    expected_api_schema={"id": None, "name": None, "email": None},
+    expected_api_schema={"id": int, "name": str, "email": str},
 )
+
+# Nested and list schemas for complex API responses.
+guard.activate(
+    check_dependencies=False,
+    guard_errors=False,
+    expected_api_schema={
+        "users": [{"id": int, "name": str}],
+        "meta": {"total": int, "page": int},
+    },
+)
+```
+
+---
+
+## Configuration file
+
+Guard settings can be loaded from a `guard.toml` file or a `[tool.guard]`
+section in `pyproject.toml`, so teams can version-control their configuration
+without changing application code.
+
+```toml
+# guard.toml
+check_dependencies = true
+check_broken = false
+guard_api = true
+guard_errors = true
+auto_patch = false
+verbose = true
+
+[expected_api_schema]
+id = "int"
+name = "str"
+```
+
+Or in `pyproject.toml`:
+
+```toml
+[tool.guard]
+check_dependencies = true
+guard_errors = true
+auto_patch = true
+
+[tool.guard.expected_api_schema]
+id = "int"
+name = "str"
+```
+
+Then just call `guard.activate()` — settings are picked up automatically.
+
+---
+
+## CLI: `guard audit`
+
+Scan installed dependencies and exit non-zero when vulnerabilities are found.
+Ideal for CI/CD pipelines.
+
+```bash
+# Human-readable output
+python -m guard audit
+
+# Include broken-import check (slower)
+python -m guard audit --broken
+
+# JSON output for machine consumption
+python -m guard audit --json
+```
+
+Example output:
+
+```
+⚠️  Detected vulnerable dependency: pyyaml==5.1.0 — CVE-2020-14343
+
+🛡️  guard audit: 1 finding(s) detected.
+```
+
+---
+
+## Structured logging
+
+Enable structured JSON logging for integration with log aggregators
+(Datadog, Loki, CloudWatch):
+
+```python
+import guard
+guard.activate(structured_logging=True)
+```
+
+Each guard event is emitted as a single-line JSON record to *stderr*:
+
+```json
+{"timestamp": "2025-01-15 10:30:00,123", "level": "WARNING", "logger": "guard", "message": "⚠️  ...", "event": "dependency_warning"}
 ```
 
 ---
@@ -220,9 +322,11 @@ Universal Runtime Guard follows a **Rust-core, polyglot-wrapper** design:
 - Each ecosystem gets an idiomatic wrapper published through its own package
   manager (`pip`, `npm`, `go get`, `cargo`).
 
-Phase 1 (current) is a **pure-Python prototype** that codifies the
-behaviour and test contracts.  Phase 3 will port the internals to Rust and
-replace them with PyO3 bindings — the public Python API stays identical.
+Phase 2 (current) extends guard with configuration file support, type-aware
+and nested schema validation, thread/async exception coverage, a `guard audit`
+CLI command, and structured JSON logging.  Phase 3 will port the internals
+to Rust and replace them with PyO3 bindings — the public Python API stays
+identical.
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design document.
 
@@ -233,7 +337,7 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design document.
 | Phase | Status | Highlights |
 |-------|--------|-----------|
 | **1 — Core Python package** | ✅ shipped | Static CVE DB · requests patch · heuristic advisor |
-| **2 — Config & deeper coverage** | 📋 planned | `guard.toml` · type-aware schema · threads/async |
+| **2 — Config & deeper coverage** | ✅ shipped | `guard.toml` · type-aware schema · threads/async · `guard audit` CLI · structured logging |
 | **3 — Rust core & multi-language** | 📋 planned | Rust engine · PyO3 binding · Node.js/Go wrappers |
 | **4 — Live advisory DB** | 🔭 future | OSV live feed · SBOM export · licence scanning |
 | **5 — Dashboard & LLM** | 🔭 future | Prometheus metrics · alert webhooks · AI-workflow integration |

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "universal-runtime-guard"
-version = "0.1.0"
+version = "0.2.0"
 description = "A single dependency that automatically prevents crashes, security exploits, and bad API responses in production."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -31,16 +31,21 @@ dependencies = []
 
 [project.optional-dependencies]
 requests = ["requests>=2.21.0"]
+toml = ["tomli>=1.0; python_version < '3.11'"]
 dev = [
     "requests>=2.21.0",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "responses>=0.23",
+    "tomli>=1.0; python_version < '3.11'",
 ]
 
 [project.urls]
 Homepage = "https://github.com/kamrankhan78694/Universal-Runtime-Guard"
 Issues   = "https://github.com/kamrankhan78694/Universal-Runtime-Guard/issues"
+
+[project.scripts]
+guard = "guard.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
