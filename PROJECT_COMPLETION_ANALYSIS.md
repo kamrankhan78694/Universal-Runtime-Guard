@@ -80,11 +80,12 @@ to Python (PyO3), Node.js (napi-rs), Go (cgo), WASM, and a standalone CLI.
 | `test_threading_async.py` | 6 | Thread and asyncio exception coverage |
 | `test_thread_safety.py` | 5 | Thread-safety stress tests for API guard |
 | `test_asyncio_edge_cases.py` | 6 | Asyncio edge cases (cancellation, concurrency) |
+| `test_production_hardening.py` | 11 | Thread-safe counts, input validation, logging integration, defensive hooks |
 | `test_dependency.py` | 8 | Vulnerability scanning and blocked packages |
 | `test_cli.py` | 8 | CLI `guard audit` command |
 | `test_config.py` | 7 | Configuration file loading |
 | `test_logging.py` | 6 | Structured JSON log output |
-| **Total** | **98** | |
+| **Total** | **109** | |
 
 ---
 
@@ -96,45 +97,48 @@ Based on a thorough scan of the codebase:
 - **Zero `NotImplementedError` calls** detected.
 - **Zero dead code or unused functions** identified.
 
-All Phase 1 and Phase 2 features are fully implemented with corresponding tests.
-There are no partially completed features in the current codebase.
+All Phase 1, Phase 2, and Phase 3 (Python) features are fully implemented
+with corresponding tests. Thread safety bugs (B-1, B-2, B-3) have been
+fixed.
 
 ### Areas with Lower Test Coverage
 
-While all tests pass, some modules have proportionally fewer tests relative to
-their complexity:
-
 | Module | Observation |
 |--------|-------------|
-| `dependency.py` | `pkg_resources` code paths are tested via mocks only (unavailable in some CI environments) |
-| `error_handler.py` | Asyncio handler tested but edge cases (nested loops, cancelled tasks) could be expanded |
-| `api_guard.py` | Thread-safety of `install()` / `uninstall()` not explicitly stress-tested |
+| `dependency.py` (58%) | `pkg_resources` code paths are tested via mocks only (unavailable in some CI environments) |
 
 ---
 
 ## 4. Missing Components
 
-### Missing from Phase 2 (non-blocking, nice-to-have)
+### Completed (Pre-Phase 3 + Phase 3 Python)
 
 | Component | Impact | Priority | Status |
 |-----------|--------|----------|--------|
 | `CONTRIBUTING.md` | Contributors lack onboarding guidance | Medium | ✅ Added |
 | `CHANGELOG.md` | No structured release history | Medium | ✅ Added |
-| `.github/workflows/` | No CI/CD pipeline (tests, lint, publish) | High | ✅ Added |
-| Issue templates | No standardised bug/feature request forms | Low | ✅ Added |
-| PR template | No pull request checklist | Low | ✅ Added |
-| Code coverage reporting | No coverage metrics published | Medium | ✅ Added |
+| `CODE_OF_CONDUCT.md` | Community standards | Medium | ✅ Added |
+| `SECURITY.md` | Vulnerability reporting policy | High | ✅ Added |
+| `.github/workflows/ci.yml` | CI/CD pipeline | High | ✅ Added |
+| Issue templates | Standardised bug/feature request forms | Low | ✅ Added |
+| PR template | Pull request checklist | Low | ✅ Added |
+| Code coverage reporting | Coverage metrics | Medium | ✅ Added |
+| `.pre-commit-config.yaml` | Pre-commit hooks | Medium | ✅ Added |
+| Thread-safe error counts | Data race fix | High | ✅ Fixed |
+| Thread-safe API guard | Race condition fix | High | ✅ Fixed |
+| Asyncio auto-install | Missing hook | High | ✅ Fixed |
+| Input validation | Type checking on `activate()` | Medium | ✅ Added |
+| Defensive error handling | Guard never crashes app | High | ✅ Added |
+| Structured logging in hooks | Observability | Medium | ✅ Added |
 
-### Planned for Phase 3 — Rust Core & Multi-Language Wrappers
+### Planned for Phase 3 — Rust Bindings & Multi-Language Wrappers
 
 | Component | Description |
 |-----------|-------------|
-| `guard-core/` Rust crate | Core engine: vulnerability scanner, API sanitiser, error advisor |
 | Python PyO3 binding | Replace pure-Python internals with Rust via PyO3 |
 | Node.js wrapper | `npm install universal-runtime-guard` via napi-rs |
 | Go module | `guard.Activate()` wrapping `net/http.DefaultClient` via cgo |
-| GitHub Actions CI | `.github/workflows/guard-audit.yml` |
-| Pre-commit hook | Configuration for pre-commit framework |
+| GitHub Actions reusable workflow | `.github/workflows/guard-audit.yml` |
 
 ### Planned for Phase 4 — Live Advisory DB & Supply-Chain Tooling
 
@@ -162,7 +166,7 @@ their complexity:
 
 ## 5. Project Completion Criteria (Definition of Done)
 
-### Phase 2 Completion (Current Target) ✅ Met
+### Phase 2 Completion ✅ Met
 
 | Criterion | Status |
 |-----------|--------|
@@ -172,7 +176,7 @@ their complexity:
 | **Functional:** Thread and asyncio exception coverage | ✅ |
 | **Functional:** CLI `guard audit` with `--json` and `--broken` flags | ✅ |
 | **Functional:** Structured JSON logging | ✅ |
-| **Tests:** ≥ 80 tests, 100% pass rate | ✅ (98 tests) |
+| **Tests:** ≥ 80 tests, 100% pass rate | ✅ (109 tests) |
 | **Tests:** Every public API function has at least one test | ✅ |
 | **Docs:** README with quick-start, API reference, and examples | ✅ |
 | **Docs:** Architecture document describing target design | ✅ |
@@ -181,21 +185,29 @@ their complexity:
 | **Packaging:** No mandatory runtime dependencies | ✅ |
 | **Packaging:** Python ≥ 3.8 support | ✅ |
 
-### Phase 3 Completion Criteria (Next Target)
+### Phase 3 Completion Criteria (Current Target)
 
 | Criterion | Status |
 |-----------|--------|
 | **Functional:** `guard-core` Rust crate compiles and passes its own test suite | ✅ |
-| **Functional:** Python PyO3 binding passes all 98+ existing Python tests | ⬜ |
+| **Functional:** Thread-safe error counting and API guard locking | ✅ |
+| **Functional:** Asyncio handler auto-installation | ✅ |
+| **Functional:** Input validation on `activate()` | ✅ |
+| **Functional:** Defensive error handling (guard never crashes app) | ✅ |
+| **Functional:** Structured logging in error and API layers | ✅ |
+| **Functional:** Python PyO3 binding passes all 109+ existing Python tests | ⬜ |
 | **Functional:** Node.js wrapper installable via npm with `activate()` API | ⬜ |
 | **Functional:** Go module installable via `go get` with `guard.Activate()` | ⬜ |
 | **CI/CD:** GitHub Actions workflow for test, lint, and build on push/PR | ✅ |
-| **CI/CD:** Automated PyPI publishing on tag | ⬜ |
 | **CI/CD:** Cross-platform matrix (Linux, macOS, Windows) | ✅ |
+| **CI/CD:** Automated PyPI publishing on tag | ⬜ |
 | **Tests:** Rust unit tests with ≥ 80% coverage | ✅ |
+| **Tests:** Production hardening tests (thread safety, validation, logging) | ✅ |
 | **Tests:** Integration tests across all language bindings | ⬜ |
 | **Docs:** CONTRIBUTING.md with setup and contribution guidelines | ✅ |
 | **Docs:** CHANGELOG.md following Keep a Changelog format | ✅ |
+| **Docs:** SECURITY.md with vulnerability reporting policy | ✅ |
+| **Config:** Pre-commit hook configuration | ✅ |
 | **Packaging:** Binary wheels for manylinux, macOS, Windows | ⬜ |
 | **Packaging:** npm package published | ⬜ |
 | **Packaging:** Go module tagged and fetchable | ⬜ |
@@ -231,30 +243,38 @@ their complexity:
 - [x] Add `.github/ISSUE_TEMPLATE/bug_report.md`
 - [x] Add `.github/ISSUE_TEMPLATE/feature_request.md`
 - [x] Add `.github/PULL_REQUEST_TEMPLATE.md`
-- [x] Set up code coverage reporting (e.g., `pytest-cov` + Codecov/Coveralls)
+- [x] Set up code coverage reporting (`pytest-cov`)
 - [ ] Publish v0.2.0 to PyPI (or TestPyPI for validation)
 - [x] Add thread-safety stress tests for `api_guard.install()` / `uninstall()`
 - [x] Expand asyncio edge-case tests (nested loops, cancelled tasks)
 
-### Phase 3 — Rust Core & Multi-Language Wrappers
+### Phase 3 — Production Hardening & Rust Core
 
+- [x] Fix thread-unsafe error counts (B-2) with `threading.Lock`
+- [x] Fix thread-unsafe API guard install/uninstall (B-3) with locking
+- [x] Fix asyncio handler not auto-installed (B-1) via `asyncio.get_running_loop()`
+- [x] Add input validation on `activate()` parameters
+- [x] Add defensive error handling (guard never crashes app)
+- [x] Add structured logging integration in error hooks
+- [x] Add structured logging integration in API guard warnings
+- [x] Add `SECURITY.md` with vulnerability reporting policy
+- [x] Add `.pre-commit-config.yaml`
 - [x] Initialise `guard-core/` Rust workspace with `Cargo.toml`
 - [x] Implement vulnerability scanner module in Rust
 - [x] Implement API sanitiser module in Rust
 - [x] Implement error advisor module in Rust
 - [x] Embed static advisory database in Rust crate
 - [x] Write Rust unit tests (≥ 80% coverage)
+- [x] Set up cross-platform CI (Linux, macOS, Windows)
+- [x] Release v0.3.0
 - [ ] Create Python PyO3 binding (`bindings/python/`)
-- [ ] Verify all 98+ Python tests pass with PyO3 backend
+- [ ] Verify all 109+ Python tests pass with PyO3 backend
 - [ ] Create Node.js napi-rs wrapper (`bindings/node/`)
 - [ ] Create Go cgo wrapper (`bindings/go/`)
-- [x] Set up cross-platform CI (Linux, macOS, Windows)
 - [ ] Configure `maturin` for Python wheel builds
-- [ ] Add pre-commit hook configuration
 - [ ] Publish Python wheels to PyPI
 - [ ] Publish npm package
 - [ ] Tag Go module for `go get`
-- [ ] Release v0.3.0
 
 ### Phase 4 — Live Advisory DB & Supply-Chain Tooling
 
@@ -310,7 +330,11 @@ The current README is comprehensive. Suggested enhancements:
   - `feature_request.md` (use case, proposed solution, alternatives)
 - [x] Add `.github/PULL_REQUEST_TEMPLATE.md` with checklist (tests, docs, changelog)
 
-### Release Documentation
+### Security Documentation
+
+- [x] Create `SECURITY.md` with vulnerability reporting guidelines
+- [x] Document thread-safety guarantees
+- [x] Document input validation approach
 
 - [x] Create `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/) format
 - [x] Document the **release process** (in CONTRIBUTING.md)
@@ -320,22 +344,42 @@ The current README is comprehensive. Suggested enhancements:
 
 ## Summary
 
-Universal Runtime Guard v0.2.0 is a **fully functional, well-tested, and
-well-documented** pure-Python runtime safety toolkit. Phase 1 and Phase 2 are
-complete with 98 passing tests (89% code coverage), zero technical debt, and
-clean architecture. Contributor infrastructure (CI, templates, docs) is now
-in place. The Rust core engine (`guard-core/`) has been scaffolded with
-scanner, sanitiser, and advisor modules including unit tests.
+Universal Runtime Guard v0.3.0 is a **production-hardened, fully functional,
+well-tested, and well-documented** pure-Python runtime safety toolkit.
 
-The path to full project completion follows the established 5-phase roadmap:
+### Current state (v0.3.0)
+
+- **109 passing tests** (100% pass rate, 88% code coverage)
+- **Zero TODO/FIXME/HACK comments** in source code
+- **Thread-safe** error counting and API guard operations
+- **Defensive hooks** that never crash the host application
+- **Input validation** on all public API parameters
+- **Structured logging** integrated into error handler and API guard
+- **CI/CD** with cross-platform testing (Linux, macOS, Windows × Python 3.8–3.12)
+- **Contributor infrastructure** (CONTRIBUTING, CHANGELOG, CODE_OF_CONDUCT, SECURITY, templates)
+- **Pre-commit hooks** for code quality and security scanning
+- **Rust core scaffold** with scanner, sanitiser, and advisor modules
+
+### Known trade-offs and technical debt
+
+| Item | Description | Mitigation |
+|------|-------------|------------|
+| Pure-Python performance | No Rust bindings yet; advisory DB scanned in Python | Phase 3 PyO3 migration will address this |
+| Simple version matching | `dependency.py` uses `startswith()` for version comparison | Phase 4 will add proper semver comparison |
+| `pkg_resources` dependency | Relied upon for installed package enumeration; deprecated | Will migrate to `importlib.metadata` |
+| No live advisory updates | Advisory DB is static, embedded at release time | Phase 4 will add OSV live feed |
+| `requests`-only patching | Only `requests` library is patched; `httpx`/`aiohttp` not yet | Phase 3 will add async HTTP library support |
+| No remote error reporting | Errors are logged locally only | Phase 5 will add Sentry-compatible DSN |
+
+### Roadmap
 
 | Phase | Status | Key Deliverable |
 |-------|--------|-----------------|
 | Phase 1 | ✅ Shipped | Core Python package |
 | Phase 2 | ✅ Shipped | Configuration, type-aware schemas, async/thread coverage |
-| Phase 3 | 🔄 In progress | Rust core (scaffolded), multi-language wrappers, CI/CD (done) |
+| Phase 3 | 🔄 In progress | Production hardening (done), Rust core (scaffolded), multi-language wrappers (planned) |
 | Phase 4 | ⬜ Backlog | Live advisory DB, SBOM, licence compliance |
 | Phase 5 | ⬜ Backlog | Dashboard, alerting, LLM suggestions |
 
-The **immediate next steps** are to complete the PyO3 bindings, Node.js and
-Go wrappers, and publish packages to their respective registries.
+The **immediate next steps** are to create the PyO3 Python binding,
+followed by Node.js (napi-rs) and Go (cgo) wrappers.

@@ -356,6 +356,10 @@ development setup, coding standards, and the PR process.
 For a detailed list of changes in each release, see
 [`CHANGELOG.md`](CHANGELOG.md).
 
+## Security
+
+To report a vulnerability, see [`SECURITY.md`](SECURITY.md).
+
 ---
 
 ## License
