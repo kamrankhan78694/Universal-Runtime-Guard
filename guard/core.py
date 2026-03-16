@@ -137,6 +137,12 @@ def activate(
         Defaults to the current working directory.  Explicit keyword
         arguments always override file-based settings.
     """
+    # --- Input validation (before any work) ----------------------------------
+    if config_dir is not None and not isinstance(config_dir, str):
+        raise TypeError(
+            f"config_dir must be a str or None, got {type(config_dir).__name__}"
+        )
+
     # Load config file defaults, then overlay explicit arguments.
     file_config = load_config(directory=config_dir)
 
@@ -157,6 +163,11 @@ def activate(
     a_patch = bool(_resolve(auto_patch, "auto_patch", False))
     v = bool(_resolve(verbose, "verbose", True))
     s_logging = bool(_resolve(structured_logging, "structured_logging", False))
+
+    if schema is not None and not isinstance(schema, dict):
+        raise TypeError(
+            f"expected_api_schema must be a dict or None, got {type(schema).__name__}"
+        )
 
     activated: list[str] = []
 

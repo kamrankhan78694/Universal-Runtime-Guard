@@ -32,8 +32,9 @@ Call :func:`uninstall` to restore the original ``requests.Session.send``
 
 Thread safety
 ~~~~~~~~~~~~~
-:func:`install` and :func:`uninstall` are not thread-safe.  Call them
-once at application start-up before spawning threads.
+:func:`install` and :func:`uninstall` are protected by an internal lock and
+are safe to call from multiple threads.  Call them once at application
+start-up before spawning threads for best results.
 
 Current phase
 -------------
@@ -67,6 +68,7 @@ from __future__ import annotations
 
 import re
 import sys
+import threading
 from typing import Any, Optional
 
 
@@ -90,6 +92,15 @@ def _sanitize_value(value: Any) -> Any:
 
 def _warn(message: str) -> None:
     print(message, file=sys.stderr)
+    try:
+        from guard import logging as guard_logging  # noqa: PLC0415
+
+        if guard_logging.is_enabled():
+            guard_logging.log_event(
+                "api_warning", message=message,
+            )
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +283,7 @@ class _GuardedResponse:
 
 _original_send: Any = None
 _installed = False
+_install_lock = threading.Lock()
 
 
 def install(expected_schema: Optional[dict] = None) -> None:
@@ -280,37 +292,40 @@ def install(expected_schema: Optional[dict] = None) -> None:
     :class:`_GuardedResponse`.
 
     Safe to call multiple times — subsequent calls are no-ops.
+    Thread-safe: protected by an internal lock.
     """
     global _original_send, _installed
-    if _installed:
-        return
+    with _install_lock:
+        if _installed:
+            return
 
-    try:
-        import requests  # noqa: PLC0415
+        try:
+            import requests  # noqa: PLC0415
 
-        _original_send = requests.Session.send
+            _original_send = requests.Session.send
 
-        def _guarded_send(session_self: Any, *args: Any, **kwargs: Any) -> Any:
-            response = _original_send(session_self, *args, **kwargs)
-            return _GuardedResponse(response, expected_schema=expected_schema)
+            def _guarded_send(session_self: Any, *args: Any, **kwargs: Any) -> Any:
+                response = _original_send(session_self, *args, **kwargs)
+                return _GuardedResponse(response, expected_schema=expected_schema)
 
-        requests.Session.send = _guarded_send  # type: ignore[method-assign]
-        _installed = True
-    except ImportError:
-        # requests is not installed — nothing to patch.
-        pass
+            requests.Session.send = _guarded_send  # type: ignore[method-assign]
+            _installed = True
+        except ImportError:
+            # requests is not installed — nothing to patch.
+            pass
 
 
 def uninstall() -> None:
-    """Restore the original ``requests.Session.send``."""
+    """Restore the original ``requests.Session.send``. Thread-safe."""
     global _original_send, _installed
-    if not _installed or _original_send is None:
-        return
-    try:
-        import requests  # noqa: PLC0415
+    with _install_lock:
+        if not _installed or _original_send is None:
+            return
+        try:
+            import requests  # noqa: PLC0415
 
-        requests.Session.send = _original_send  # type: ignore[method-assign]
-    except ImportError:
-        pass
-    _original_send = None
-    _installed = False
+            requests.Session.send = _original_send  # type: ignore[method-assign]
+        except ImportError:
+            pass
+        _original_send = None
+        _installed = False
