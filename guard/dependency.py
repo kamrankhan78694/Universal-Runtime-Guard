@@ -53,7 +53,7 @@ from __future__ import annotations
 
 import importlib
 import sys
-from typing import Iterator
+from typing import Any, Iterator
 
 # ---------------------------------------------------------------------------
 # Curated vulnerability database (package → set of affected version prefixes)
@@ -155,6 +155,23 @@ def scan_blocked() -> Iterator[str]:
             yield f"🚫 Blocked insecure package detected: {pkg_name} — {reason}"
 
 
+def _get_top_level_names(pkg: Any) -> list[str]:
+    """Return the importable top-level module names for a distribution.
+
+    Uses the ``top_level.txt`` metadata file (written by setuptools/pip at
+    install time) to obtain the *real* module names.  Falls back to
+    guessing from the distribution name when metadata is unavailable.
+    """
+    try:
+        text = pkg.get_metadata("top_level.txt")
+        names = [n.strip() for n in text.strip().splitlines() if n.strip()]
+        if names:
+            return names
+    except (FileNotFoundError, KeyError, AttributeError, ValueError, IOError):
+        pass
+    return [pkg.key.replace("-", "_")]
+
+
 def scan_broken() -> Iterator[str]:
     """
     Yield warning strings for packages that are installed but fail to import,
@@ -164,22 +181,29 @@ def scan_broken() -> Iterator[str]:
         import pkg_resources  # noqa: PLC0415
         for pkg in pkg_resources.working_set:
             try:
-                # Many packages don't expose a top-level module with the same
-                # name; skip those that clearly won't map 1-to-1.
-                top_level = pkg.key.replace("-", "_")
-                if top_level in sys.modules:
-                    # Already imported successfully — no need to re-check.
-                    continue
-                importlib.import_module(top_level)
-            except ImportError as exc:
-                # Broken dependency — its own import failed.
-                yield (
-                    f"⚠️  Detected broken dependency: {pkg.key}=={pkg.version} "
-                    f"— {exc}"
-                )
+                names = _get_top_level_names(pkg)
+                last_import_err: Exception | None = None
+                for name in names:
+                    if name in sys.modules:
+                        break
+                    try:
+                        importlib.import_module(name)
+                        break
+                    except ImportError as exc:
+                        last_import_err = exc
+                        continue
+                    except Exception:
+                        # Other errors (e.g., syntax errors) — package exists
+                        # but has issues; don't flag as missing.
+                        break
+                else:
+                    # None of the top-level names were importable.
+                    if last_import_err is not None:
+                        yield (
+                            f"⚠️  Detected broken dependency: "
+                            f"{pkg.key}=={pkg.version} — {last_import_err}"
+                        )
             except Exception:
-                # Other errors (e.g., syntax errors in the package) are
-                # interesting but we don't want guard itself to crash.
                 pass
     except Exception:
         pass

@@ -129,3 +129,33 @@ def test_reset_counts_clears_state():
     assert error_handler.error_counts().get("KeyError") == 1
     error_handler.reset_counts()
     assert error_handler.error_counts() == {}
+
+
+# ---------------------------------------------------------------------------
+# B-1: install() must register async handler on future event loops
+# ---------------------------------------------------------------------------
+
+def test_install_registers_async_handler_on_new_loop():
+    """After install(), new event loops must have the guard async handler."""
+    import asyncio
+
+    error_handler.install()
+    loop = asyncio.new_event_loop()
+    try:
+        handler = loop.get_exception_handler()
+        assert handler is error_handler._guard_async_exception_handler
+    finally:
+        loop.close()
+
+
+def test_uninstall_restores_loop_policy():
+    """uninstall() must restore the original event-loop policy."""
+    import asyncio
+
+    original_policy = asyncio.get_event_loop_policy()
+    error_handler.install()
+    assert isinstance(
+        asyncio.get_event_loop_policy(), error_handler._GuardLoopPolicy,
+    )
+    error_handler.uninstall()
+    assert asyncio.get_event_loop_policy() is original_policy

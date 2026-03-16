@@ -7,8 +7,10 @@ import pytest
 from guard.dependency import (
     _BLOCKED_PACKAGES,
     _VULNERABILITY_DB,
+    _get_top_level_names,
     run_all_scans,
     scan_blocked,
+    scan_broken,
     scan_vulnerabilities,
 )
 
@@ -107,3 +109,61 @@ def test_run_all_scans_combines_results():
     has_blocked = any(blocked_name in w for w in result)
     assert has_vuln
     assert has_blocked
+
+
+# ---------------------------------------------------------------------------
+# B-4: scan_broken() — package name → module name mapping
+# ---------------------------------------------------------------------------
+
+def test_get_top_level_names_reads_metadata():
+    """_get_top_level_names should prefer top_level.txt over name guessing."""
+    pkg = MagicMock()
+    pkg.key = "pillow"
+    pkg.get_metadata.return_value = "PIL\n"
+    assert _get_top_level_names(pkg) == ["PIL"]
+
+
+def test_get_top_level_names_fallback_on_missing_metadata():
+    """Without top_level.txt, fall back to name-based guessing."""
+    pkg = MagicMock()
+    pkg.key = "some-package"
+    pkg.get_metadata.side_effect = FileNotFoundError("no top_level.txt")
+    assert _get_top_level_names(pkg) == ["some_package"]
+
+
+def test_scan_broken_uses_top_level_txt():
+    """scan_broken should use top_level.txt, not naive name mapping."""
+    import pkg_resources
+
+    # Simulate a package "pillow" whose top-level module is "PIL".
+    pkg = MagicMock()
+    pkg.key = "pillow"
+    pkg.version = "10.0.0"
+    pkg.get_metadata.return_value = "PIL\n"
+
+    with patch.object(pkg_resources, "working_set", [pkg]):
+        # PIL is importable → no warnings expected
+        with patch("guard.dependency.importlib.import_module") as mock_import:
+            mock_import.return_value = MagicMock()
+            warnings = list(scan_broken())
+            # Should have tried to import "PIL", not "pillow"
+            mock_import.assert_called_with("PIL")
+            assert warnings == []
+
+
+def test_scan_broken_reports_unimportable_package():
+    """scan_broken should report when none of the top-level names import."""
+    import pkg_resources
+
+    pkg = MagicMock()
+    pkg.key = "broken-pkg"
+    pkg.version = "1.0.0"
+    pkg.get_metadata.side_effect = FileNotFoundError
+
+    with patch.object(pkg_resources, "working_set", [pkg]):
+        with patch("guard.dependency.importlib.import_module") as mock_import:
+            mock_import.side_effect = ImportError("No module named 'broken_pkg'")
+            with patch.dict(sys.modules, {}, clear=False):
+                warnings = list(scan_broken())
+    assert len(warnings) == 1
+    assert "broken-pkg" in warnings[0]

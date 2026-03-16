@@ -107,3 +107,39 @@ def test_load_config_guard_toml_priority():
         config = load_config(directory=tmpdir)
         # guard.toml should take priority
         assert config["verbose"] is False
+
+
+# ---------------------------------------------------------------------------
+# B-5: malformed TOML must warn, not silently drop
+# ---------------------------------------------------------------------------
+
+def test_load_config_malformed_toml_warns():
+    """Malformed TOML should emit a warning and return empty config."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        toml_path = Path(tmpdir) / "guard.toml"
+        toml_path.write_text("this is not valid TOML [[[[")
+
+        import warnings as _warnings
+
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            config = load_config(directory=tmpdir)
+
+        assert config == {}
+        assert any("malformed TOML" in str(w.message) for w in caught)
+
+
+def test_load_config_valid_toml_no_warning():
+    """Valid TOML should load without any warnings."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        toml_path = Path(tmpdir) / "guard.toml"
+        toml_path.write_text('verbose = true\n')
+
+        import warnings as _warnings
+
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            config = load_config(directory=tmpdir)
+
+        assert config["verbose"] is True
+        assert not any("malformed TOML" in str(w.message) for w in caught)

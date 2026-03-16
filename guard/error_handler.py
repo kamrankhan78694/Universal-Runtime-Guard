@@ -80,6 +80,7 @@ from guard import advisor
 
 _original_excepthook: Any = sys.__excepthook__
 _original_threading_excepthook: Any = None
+_original_loop_policy: Any = None
 _installed = False
 
 # Counts of caught exceptions, keyed by exception type name.
@@ -277,6 +278,19 @@ def _guard_async_exception_handler(
 
 
 # ---------------------------------------------------------------------------
+# Event-loop policy that auto-registers the async handler (B-1 fix)
+# ---------------------------------------------------------------------------
+
+class _GuardLoopPolicy(asyncio.DefaultEventLoopPolicy):
+    """Policy that auto-installs the guard async exception handler on new loops."""
+
+    def new_event_loop(self) -> asyncio.AbstractEventLoop:
+        loop = super().new_event_loop()
+        loop.set_exception_handler(_guard_async_exception_handler)
+        return loop
+
+
+# ---------------------------------------------------------------------------
 # Structured-logging bridge
 # ---------------------------------------------------------------------------
 
@@ -335,6 +349,7 @@ def install(auto_patch: bool = False) -> None:
         than crash.
     """
     global _installed, _auto_patch, _original_threading_excepthook
+    global _original_loop_policy
     with _install_lock:
         if _installed:
             return
@@ -347,13 +362,17 @@ def install(auto_patch: bool = False) -> None:
         _original_threading_excepthook = threading.excepthook
         threading.excepthook = _guard_threading_excepthook
 
-        # Asyncio exception handler — install on the running loop if one
-        # exists, otherwise it will be picked up when a loop is created.
+        # Asyncio exception handler — install via a custom event-loop policy
+        # so that *every* future loop (including those created by
+        # ``asyncio.run()``) gets the handler automatically.
+        _original_loop_policy = asyncio.get_event_loop_policy()
+        asyncio.set_event_loop_policy(_GuardLoopPolicy())
+
+        # Also install on the already-running loop, if any.
         try:
             loop = asyncio.get_running_loop()
             loop.set_exception_handler(_guard_async_exception_handler)
         except RuntimeError:
-            # No running event loop — that is fine.
             pass
 
         _installed = True
@@ -361,7 +380,7 @@ def install(auto_patch: bool = False) -> None:
 
 def uninstall() -> None:
     """Restore the original ``sys.excepthook`` and threading/asyncio hooks."""
-    global _installed, _original_threading_excepthook
+    global _installed, _original_threading_excepthook, _original_loop_policy
     with _install_lock:
         if not _installed:
             return
@@ -372,7 +391,12 @@ def uninstall() -> None:
             threading.excepthook = _original_threading_excepthook
             _original_threading_excepthook = None
 
-        # Restore asyncio default handler if a loop is available.
+        # Restore original event-loop policy.
+        if _original_loop_policy is not None:
+            asyncio.set_event_loop_policy(_original_loop_policy)
+            _original_loop_policy = None
+
+        # Also clear the handler on the running loop, if any.
         try:
             loop = asyncio.get_running_loop()
             loop.set_exception_handler(None)
