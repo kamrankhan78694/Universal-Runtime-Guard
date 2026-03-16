@@ -167,7 +167,7 @@ def _get_top_level_names(pkg: Any) -> list[str]:
         names = [n.strip() for n in text.strip().splitlines() if n.strip()]
         if names:
             return names
-    except Exception:
+    except (FileNotFoundError, KeyError, AttributeError, ValueError, IOError):
         pass
     return [pkg.key.replace("-", "_")]
 
