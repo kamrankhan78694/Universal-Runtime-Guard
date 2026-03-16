@@ -69,11 +69,11 @@ types, and cover async / threaded code paths.
 | Asyncio task exception coverage | `guard/error_handler.py` | ✅ |
 | `guard audit` CLI command | `guard/__main__.py` | ✅ |
 | Structured logging output (JSON) | `guard/logging.py` | ✅ |
-| 85-test pytest suite (100 % pass) | `tests/` | ✅ |
+| 85+-test pytest suite (100 % pass) | `tests/` | ✅ |
 
 ---
 
-## Phase 3 — Rust Core & Multi-Language Wrappers 📋
+## Phase 3 — Rust Core & Multi-Language Wrappers 🔄
 
 **Goal:** Port the core engine to Rust and ship native wrappers for Node.js
 and Go.  Python becomes a thin PyO3 binding over the shared Rust crate.
@@ -85,12 +85,19 @@ package manager.
 > serves as the prototype and specification; every test becomes a contract
 > that the Rust core must satisfy.
 
-### Planned items
+### Shipped features
 
-- [ ] **`guard-core` Rust crate**
-  Implement the vulnerability scanner, API sanitiser, error advisor, and
-  embedded advisory database in Rust.  Compile to a native shared library
-  (`.so` / `.dylib` / `.dll`), a WASM module, and a standalone CLI binary.
+| Feature | Location | Status |
+|---------|----------|--------|
+| `guard-core` Rust crate scaffold | `guard-core/Cargo.toml` | ✅ |
+| Vulnerability scanner module | `guard-core/src/scanner.rs` | ✅ |
+| API sanitiser module | `guard-core/src/sanitiser.rs` | ✅ |
+| Error advisor module | `guard-core/src/advisor.rs` | ✅ |
+| Embedded advisory database | `guard-core/src/scanner.rs` | ✅ |
+| Rust unit tests | `guard-core/src/*.rs` | ✅ |
+| Cross-platform CI | `.github/workflows/ci.yml` | ✅ |
+
+### Planned items
 
 - [ ] **Python PyO3 binding**
   Replace the pure-Python internals with calls to the compiled `guard-core`

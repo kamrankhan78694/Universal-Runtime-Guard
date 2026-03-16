@@ -78,11 +78,13 @@ to Python (PyO3), Node.js (napi-rs), Go (cgo), WASM, and a standalone CLI.
 | `test_advisor.py` | 9 | Heuristic fix-suggestion matching |
 | `test_error_handler.py` | 8 | Exception hook installation and reporting |
 | `test_threading_async.py` | 6 | Thread and asyncio exception coverage |
+| `test_thread_safety.py` | 5 | Thread-safety stress tests for API guard |
+| `test_asyncio_edge_cases.py` | 6 | Asyncio edge cases (cancellation, concurrency) |
 | `test_dependency.py` | 8 | Vulnerability scanning and blocked packages |
 | `test_cli.py` | 8 | CLI `guard audit` command |
 | `test_config.py` | 7 | Configuration file loading |
 | `test_logging.py` | 6 | Structured JSON log output |
-| **Total** | **87** | |
+| **Total** | **98** | |
 
 ---
 
@@ -114,14 +116,14 @@ their complexity:
 
 ### Missing from Phase 2 (non-blocking, nice-to-have)
 
-| Component | Impact | Priority |
-|-----------|--------|----------|
-| `CONTRIBUTING.md` | Contributors lack onboarding guidance | Medium |
-| `CHANGELOG.md` | No structured release history | Medium |
-| `.github/workflows/` | No CI/CD pipeline (tests, lint, publish) | High |
-| Issue templates | No standardised bug/feature request forms | Low |
-| PR template | No pull request checklist | Low |
-| Code coverage reporting | No coverage metrics published | Medium |
+| Component | Impact | Priority | Status |
+|-----------|--------|----------|--------|
+| `CONTRIBUTING.md` | Contributors lack onboarding guidance | Medium | ✅ Added |
+| `CHANGELOG.md` | No structured release history | Medium | ✅ Added |
+| `.github/workflows/` | No CI/CD pipeline (tests, lint, publish) | High | ✅ Added |
+| Issue templates | No standardised bug/feature request forms | Low | ✅ Added |
+| PR template | No pull request checklist | Low | ✅ Added |
+| Code coverage reporting | No coverage metrics published | Medium | ✅ Added |
 
 ### Planned for Phase 3 — Rust Core & Multi-Language Wrappers
 
@@ -170,7 +172,7 @@ their complexity:
 | **Functional:** Thread and asyncio exception coverage | ✅ |
 | **Functional:** CLI `guard audit` with `--json` and `--broken` flags | ✅ |
 | **Functional:** Structured JSON logging | ✅ |
-| **Tests:** ≥ 80 tests, 100% pass rate | ✅ (87 tests) |
+| **Tests:** ≥ 80 tests, 100% pass rate | ✅ (98 tests) |
 | **Tests:** Every public API function has at least one test | ✅ |
 | **Docs:** README with quick-start, API reference, and examples | ✅ |
 | **Docs:** Architecture document describing target design | ✅ |
@@ -183,17 +185,17 @@ their complexity:
 
 | Criterion | Status |
 |-----------|--------|
-| **Functional:** `guard-core` Rust crate compiles and passes its own test suite | ⬜ |
-| **Functional:** Python PyO3 binding passes all 87+ existing Python tests | ⬜ |
+| **Functional:** `guard-core` Rust crate compiles and passes its own test suite | ✅ |
+| **Functional:** Python PyO3 binding passes all 98+ existing Python tests | ⬜ |
 | **Functional:** Node.js wrapper installable via npm with `activate()` API | ⬜ |
 | **Functional:** Go module installable via `go get` with `guard.Activate()` | ⬜ |
-| **CI/CD:** GitHub Actions workflow for test, lint, and build on push/PR | ⬜ |
+| **CI/CD:** GitHub Actions workflow for test, lint, and build on push/PR | ✅ |
 | **CI/CD:** Automated PyPI publishing on tag | ⬜ |
-| **CI/CD:** Cross-platform matrix (Linux, macOS, Windows) | ⬜ |
-| **Tests:** Rust unit tests with ≥ 80% coverage | ⬜ |
+| **CI/CD:** Cross-platform matrix (Linux, macOS, Windows) | ✅ |
+| **Tests:** Rust unit tests with ≥ 80% coverage | ✅ |
 | **Tests:** Integration tests across all language bindings | ⬜ |
-| **Docs:** CONTRIBUTING.md with setup and contribution guidelines | ⬜ |
-| **Docs:** CHANGELOG.md following Keep a Changelog format | ⬜ |
+| **Docs:** CONTRIBUTING.md with setup and contribution guidelines | ✅ |
+| **Docs:** CHANGELOG.md following Keep a Changelog format | ✅ |
 | **Packaging:** Binary wheels for manylinux, macOS, Windows | ⬜ |
 | **Packaging:** npm package published | ⬜ |
 | **Packaging:** Go module tagged and fetchable | ⬜ |
@@ -223,30 +225,30 @@ their complexity:
 
 ### Immediate (Pre–Phase 3)
 
-- [ ] Create `CONTRIBUTING.md` with development setup, coding standards, PR process
-- [ ] Create `CHANGELOG.md` with v0.1.0 and v0.2.0 entries
-- [ ] Add `.github/workflows/ci.yml` — run tests on push/PR for Python 3.8–3.12
-- [ ] Add `.github/ISSUE_TEMPLATE/bug_report.md`
-- [ ] Add `.github/ISSUE_TEMPLATE/feature_request.md`
-- [ ] Add `.github/PULL_REQUEST_TEMPLATE.md`
-- [ ] Set up code coverage reporting (e.g., `pytest-cov` + Codecov/Coveralls)
+- [x] Create `CONTRIBUTING.md` with development setup, coding standards, PR process
+- [x] Create `CHANGELOG.md` with v0.1.0 and v0.2.0 entries
+- [x] Add `.github/workflows/ci.yml` — run tests on push/PR for Python 3.8–3.12
+- [x] Add `.github/ISSUE_TEMPLATE/bug_report.md`
+- [x] Add `.github/ISSUE_TEMPLATE/feature_request.md`
+- [x] Add `.github/PULL_REQUEST_TEMPLATE.md`
+- [x] Set up code coverage reporting (e.g., `pytest-cov` + Codecov/Coveralls)
 - [ ] Publish v0.2.0 to PyPI (or TestPyPI for validation)
-- [ ] Add thread-safety stress tests for `api_guard.install()` / `uninstall()`
-- [ ] Expand asyncio edge-case tests (nested loops, cancelled tasks)
+- [x] Add thread-safety stress tests for `api_guard.install()` / `uninstall()`
+- [x] Expand asyncio edge-case tests (nested loops, cancelled tasks)
 
 ### Phase 3 — Rust Core & Multi-Language Wrappers
 
-- [ ] Initialise `guard-core/` Rust workspace with `Cargo.toml`
-- [ ] Implement vulnerability scanner module in Rust
-- [ ] Implement API sanitiser module in Rust
-- [ ] Implement error advisor module in Rust
-- [ ] Embed static advisory database in Rust crate
-- [ ] Write Rust unit tests (≥ 80% coverage)
+- [x] Initialise `guard-core/` Rust workspace with `Cargo.toml`
+- [x] Implement vulnerability scanner module in Rust
+- [x] Implement API sanitiser module in Rust
+- [x] Implement error advisor module in Rust
+- [x] Embed static advisory database in Rust crate
+- [x] Write Rust unit tests (≥ 80% coverage)
 - [ ] Create Python PyO3 binding (`bindings/python/`)
-- [ ] Verify all 87+ Python tests pass with PyO3 backend
+- [ ] Verify all 98+ Python tests pass with PyO3 backend
 - [ ] Create Node.js napi-rs wrapper (`bindings/node/`)
 - [ ] Create Go cgo wrapper (`bindings/go/`)
-- [ ] Set up cross-platform CI (Linux, macOS, Windows)
+- [x] Set up cross-platform CI (Linux, macOS, Windows)
 - [ ] Configure `maturin` for Python wheel builds
 - [ ] Add pre-commit hook configuration
 - [ ] Publish Python wheels to PyPI
@@ -282,36 +284,36 @@ their complexity:
 
 The current README is comprehensive. Suggested enhancements:
 
-- [ ] Add a **badges section** at the top (CI status, PyPI version, Python versions, licence, coverage)
+- [x] Add a **badges section** at the top (CI status, Python versions, licence)
 - [ ] Add a **"How It Works" diagram** showing the three protection layers
 - [ ] Add a **comparison table** vs. similar tools (e.g., Safety, Bandit, Snyk)
 - [ ] Add **"Troubleshooting"** section for common issues
-- [ ] Link to `CONTRIBUTING.md` and `CHANGELOG.md` once created
+- [x] Link to `CONTRIBUTING.md` and `CHANGELOG.md` once created
 
 ### Architecture Documentation
 
-- [ ] Add a **visual architecture diagram** (Mermaid or image) to `ARCHITECTURE.md`
-- [ ] Create a **data flow diagram** showing how a request flows through the API Guard layer
-- [ ] Document the **configuration precedence** (explicit args > file > defaults)
+- [x] Add a **visual architecture diagram** (Mermaid) to `ARCHITECTURE.md`
+- [x] Create a **data flow diagram** showing how a request flows through the API Guard layer
+- [x] Document the **configuration precedence** (explicit args > file > defaults)
 
 ### Contributor Onboarding
 
-- [ ] Create `CONTRIBUTING.md` covering:
+- [x] Create `CONTRIBUTING.md` covering:
   - Development environment setup (Python ≥ 3.8, `pip install -e ".[dev]"`)
   - Running tests (`python -m pytest tests/ -v`)
   - Code style expectations
   - PR review process
   - Issue labelling conventions
-- [ ] Create `CODE_OF_CONDUCT.md` (e.g., Contributor Covenant)
-- [ ] Add `.github/ISSUE_TEMPLATE/` with:
+- [x] Create `CODE_OF_CONDUCT.md` (Contributor Covenant v2.1)
+- [x] Add `.github/ISSUE_TEMPLATE/` with:
   - `bug_report.md` (reproduction steps, expected vs. actual, environment)
   - `feature_request.md` (use case, proposed solution, alternatives)
-- [ ] Add `.github/PULL_REQUEST_TEMPLATE.md` with checklist (tests, docs, changelog)
+- [x] Add `.github/PULL_REQUEST_TEMPLATE.md` with checklist (tests, docs, changelog)
 
 ### Release Documentation
 
-- [ ] Create `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/) format
-- [ ] Document the **release process** (version bump, changelog update, git tag, PyPI publish)
+- [x] Create `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/) format
+- [x] Document the **release process** (in CONTRIBUTING.md)
 - [ ] Add **migration guides** between major versions (when applicable)
 
 ---
@@ -320,7 +322,10 @@ The current README is comprehensive. Suggested enhancements:
 
 Universal Runtime Guard v0.2.0 is a **fully functional, well-tested, and
 well-documented** pure-Python runtime safety toolkit. Phase 1 and Phase 2 are
-complete with 87 passing tests, zero technical debt, and clean architecture.
+complete with 98 passing tests (89% code coverage), zero technical debt, and
+clean architecture. Contributor infrastructure (CI, templates, docs) is now
+in place. The Rust core engine (`guard-core/`) has been scaffolded with
+scanner, sanitiser, and advisor modules including unit tests.
 
 The path to full project completion follows the established 5-phase roadmap:
 
@@ -328,9 +333,9 @@ The path to full project completion follows the established 5-phase roadmap:
 |-------|--------|-----------------|
 | Phase 1 | ✅ Shipped | Core Python package |
 | Phase 2 | ✅ Shipped | Configuration, type-aware schemas, async/thread coverage |
-| Phase 3 | ⬜ Next | Rust core, multi-language wrappers, CI/CD |
+| Phase 3 | 🔄 In progress | Rust core (scaffolded), multi-language wrappers, CI/CD (done) |
 | Phase 4 | ⬜ Backlog | Live advisory DB, SBOM, licence compliance |
 | Phase 5 | ⬜ Backlog | Dashboard, alerting, LLM suggestions |
 
-The **immediate next steps** are to add contributor infrastructure (CI, CONTRIBUTING.md,
-CHANGELOG.md, issue templates) before beginning the Rust core migration in Phase 3.
+The **immediate next steps** are to complete the PyO3 bindings, Node.js and
+Go wrappers, and publish packages to their respective registries.
