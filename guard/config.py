@@ -116,7 +116,13 @@ def _load_toml(path: Path) -> dict[str, Any]:
     try:
         with open(path, "rb") as f:
             return tomllib.load(f)
-    except Exception:
+    except tomllib.TOMLDecodeError:
+        import warnings
+
+        warnings.warn(
+            f"guard: malformed TOML in {path}; ignoring configuration file.",
+            stacklevel=2,
+        )
         return {}
 
 
