@@ -1,5 +1,9 @@
 # Universal Runtime Guard
 
+[![CI](https://github.com/kamrankhan78694/Universal-Runtime-Guard/actions/workflows/ci.yml/badge.svg)](https://github.com/kamrankhan78694/Universal-Runtime-Guard/actions/workflows/ci.yml)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 > **A single dependency that automatically prevents crashes, security exploits,
 > and bad API responses in production.**
 
@@ -341,6 +345,20 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design document.
 | **3 — Rust core & multi-language** | 📋 planned | Rust engine · PyO3 binding · Node.js/Go wrappers |
 | **4 — Live advisory DB** | 🔭 future | OSV live feed · SBOM export · licence scanning |
 | **5 — Dashboard & LLM** | 🔭 future | Prometheus metrics · alert webhooks · AI-workflow integration |
+
+---
+
+## Contributing
+
+We welcome contributions! See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
+development setup, coding standards, and the PR process.
+
+For a detailed list of changes in each release, see
+[`CHANGELOG.md`](CHANGELOG.md).
+
+## Security
+
+To report a vulnerability, see [`SECURITY.md`](SECURITY.md).
 
 ---
 

@@ -83,11 +83,16 @@ _original_threading_excepthook: Any = None
 _installed = False
 
 # Counts of caught exceptions, keyed by exception type name.
+# Protected by _counts_lock for thread-safe access.
 _error_counts: dict[str, int] = {}
+_counts_lock = threading.Lock()
 
 # When auto_patch is True the hook prevents the interpreter from exiting for
 # non-fatal exceptions (i.e. anything except SystemExit / KeyboardInterrupt).
 _auto_patch: bool = False
+
+# Lock protecting install/uninstall from concurrent calls.
+_install_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -106,8 +111,10 @@ def _guard_excepthook(
         _original_excepthook(exc_type, exc_value, exc_tb)
         return
 
-    # Track counts.
-    _error_counts[type_name] = _error_counts.get(type_name, 0) + 1
+    # Track counts (thread-safe).
+    with _counts_lock:
+        _error_counts[type_name] = _error_counts.get(type_name, 0) + 1
+        count = _error_counts[type_name]
 
     # --- Rich error report ---------------------------------------------------
     lines = traceback.format_exception(exc_type, exc_value, exc_tb)
@@ -118,15 +125,22 @@ def _guard_excepthook(
     print(f"{'─' * 60}", file=sys.stderr)
     print(tb_text, file=sys.stderr)
 
-    # --- Fix suggestion ------------------------------------------------------
-    suggestion = advisor.suggest(exc_type, exc_value)
+    # --- Fix suggestion (defensive — guard must never crash the app) --------
+    suggestion = None
+    try:
+        suggestion = advisor.suggest(exc_type, exc_value)
+    except Exception:
+        pass
     if suggestion:
         print(f"\n{suggestion}", file=sys.stderr)
+
+    # --- Structured logging --------------------------------------------------
+    _emit_error_event(type_name, str(exc_value), suggestion, count)
 
     if _auto_patch:
         print(
             f"\n⚙️  Auto-patched: suppressing crash (auto_patch=True). "
-            f"Total {type_name} suppressions: {_error_counts[type_name]}",
+            f"Total {type_name} suppressions: {count}",
             file=sys.stderr,
         )
     else:
@@ -151,7 +165,9 @@ def _guard_threading_excepthook(args: Any) -> None:
         return
 
     type_name = exc_type.__name__
-    _error_counts[type_name] = _error_counts.get(type_name, 0) + 1
+    with _counts_lock:
+        _error_counts[type_name] = _error_counts.get(type_name, 0) + 1
+        count = _error_counts[type_name]
 
     thread_name = args.thread.name if args.thread else "unknown"
     lines = traceback.format_exception(exc_type, exc_value, exc_tb)
@@ -166,14 +182,21 @@ def _guard_threading_excepthook(args: Any) -> None:
     print(f"{'─' * 60}", file=sys.stderr)
     print(tb_text, file=sys.stderr)
 
-    suggestion = advisor.suggest(exc_type, exc_value)
+    suggestion = None
+    try:
+        suggestion = advisor.suggest(exc_type, exc_value)
+    except Exception:
+        pass
     if suggestion:
         print(f"\n{suggestion}", file=sys.stderr)
+    _emit_error_event(
+        type_name, str(exc_value), suggestion, count, thread=thread_name,
+    )
 
     if _auto_patch:
         print(
             f"\n⚙️  Auto-patched: suppressing crash (auto_patch=True). "
-            f"Total {type_name} suppressions: {_error_counts[type_name]}",
+            f"Total {type_name} suppressions: {count}",
             file=sys.stderr,
         )
     else:
@@ -202,7 +225,9 @@ def _guard_async_exception_handler(
         loop.default_exception_handler(context)
         return
 
-    _error_counts[type_name] = _error_counts.get(type_name, 0) + 1
+    with _counts_lock:
+        _error_counts[type_name] = _error_counts.get(type_name, 0) + 1
+        count = _error_counts[type_name]
 
     tb_text = ""
     if exception.__traceback__:
@@ -227,18 +252,70 @@ def _guard_async_exception_handler(
     print(f"{'─' * 60}", file=sys.stderr)
     print(tb_text, file=sys.stderr)
 
-    suggestion = advisor.suggest(exc_type, exception)
+    suggestion = None
+    try:
+        suggestion = advisor.suggest(exc_type, exception)
+    except Exception:
+        pass
     if suggestion:
         print(f"\n{suggestion}", file=sys.stderr)
+
+    # Structured logging
+    _emit_error_event(
+        type_name, str(exception), suggestion, count,
+        task=task_name or None,
+    )
 
     if _auto_patch:
         print(
             f"\n⚙️  Auto-patched: suppressing crash (auto_patch=True). "
-            f"Total {type_name} suppressions: {_error_counts[type_name]}",
+            f"Total {type_name} suppressions: {count}",
             file=sys.stderr,
         )
     else:
         print(f"{'─' * 60}\n", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Structured-logging bridge
+# ---------------------------------------------------------------------------
+
+def _emit_error_event(
+    type_name: str,
+    message: str,
+    suggestion: Optional[str],
+    count: int,
+    *,
+    thread: Optional[str] = None,
+    task: Optional[str] = None,
+) -> None:
+    """Emit a structured log event if guard.logging is enabled."""
+    try:
+        import logging as _logging  # noqa: PLC0415
+
+        from guard import logging as guard_logging  # noqa: PLC0415
+
+        if not guard_logging.is_enabled():
+            return
+        data: dict[str, Any] = {
+            "exception_type": type_name,
+            "count": count,
+        }
+        if suggestion:
+            data["suggestion"] = suggestion
+        if thread:
+            data["thread"] = thread
+        if task:
+            data["task"] = task
+        guard_logging.log_event(
+            "unhandled_exception",
+            level=_logging.ERROR,
+            message=f"Unhandled {type_name}: {message}",
+            **data,
+        )
+    except Exception:
+        # Guard must never crash the application.
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -258,38 +335,60 @@ def install(auto_patch: bool = False) -> None:
         than crash.
     """
     global _installed, _auto_patch, _original_threading_excepthook
-    if _installed:
-        return
-    _auto_patch = auto_patch
+    with _install_lock:
+        if _installed:
+            return
+        _auto_patch = auto_patch
 
-    # Main-thread excepthook
-    sys.excepthook = _guard_excepthook
+        # Main-thread excepthook
+        sys.excepthook = _guard_excepthook
 
-    # Thread excepthook (Python 3.8+)
-    _original_threading_excepthook = threading.excepthook
-    threading.excepthook = _guard_threading_excepthook
+        # Thread excepthook (Python 3.8+)
+        _original_threading_excepthook = threading.excepthook
+        threading.excepthook = _guard_threading_excepthook
 
-    _installed = True
+        # Asyncio exception handler — install on the running loop if one
+        # exists, otherwise it will be picked up when a loop is created.
+        try:
+            loop = asyncio.get_running_loop()
+            loop.set_exception_handler(_guard_async_exception_handler)
+        except RuntimeError:
+            # No running event loop — that is fine.
+            pass
+
+        _installed = True
 
 
 def uninstall() -> None:
     """Restore the original ``sys.excepthook`` and threading/asyncio hooks."""
     global _installed, _original_threading_excepthook
-    sys.excepthook = _original_excepthook
+    with _install_lock:
+        if not _installed:
+            return
+        sys.excepthook = _original_excepthook
 
-    # Restore threading excepthook
-    if _original_threading_excepthook is not None:
-        threading.excepthook = _original_threading_excepthook
-        _original_threading_excepthook = None
+        # Restore threading excepthook
+        if _original_threading_excepthook is not None:
+            threading.excepthook = _original_threading_excepthook
+            _original_threading_excepthook = None
 
-    _installed = False
+        # Restore asyncio default handler if a loop is available.
+        try:
+            loop = asyncio.get_running_loop()
+            loop.set_exception_handler(None)
+        except RuntimeError:
+            pass
+
+        _installed = False
 
 
 def error_counts() -> dict[str, int]:
     """Return a copy of the error-count dictionary."""
-    return dict(_error_counts)
+    with _counts_lock:
+        return dict(_error_counts)
 
 
 def reset_counts() -> None:
     """Clear all recorded error counts (useful in tests)."""
-    _error_counts.clear()
+    with _counts_lock:
+        _error_counts.clear()

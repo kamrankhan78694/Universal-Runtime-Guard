@@ -24,6 +24,29 @@ The strategic pattern:
 
 ## Layer diagram
 
+```mermaid
+graph TD
+    DEV[Developer Code]
+    DEV --> PY[Python Wrapper<br/>PyO3]
+    DEV --> NODE[Node.js Wrapper<br/>napi-rs]
+    DEV --> GO[Go Wrapper<br/>cgo]
+    DEV --> RS[Rust<br/>native]
+    DEV --> WASM[WASM / Edge]
+
+    PY --> CORE[guard-core Rust Crate]
+    NODE --> CORE
+    GO --> CORE
+    RS --> CORE
+    WASM --> CORE
+
+    CORE --> VS[Vulnerability Scanner]
+    CORE --> AS[API Sanitiser]
+    CORE --> EH[Error Handler + Advisor]
+    CORE --> ADB[Advisory Database<br/>embedded]
+```
+
+### ASCII fallback
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Developer code                       │
@@ -45,6 +68,40 @@ The strategic pattern:
 │  └──────────────────────────────────────────────────┘   │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Data flow — API Guard layer
+
+```mermaid
+sequenceDiagram
+    participant App as Application Code
+    participant GS as GuardedSession<br/>(monkey-patched)
+    participant Req as requests.Session
+    participant Remote as Remote API
+
+    App->>GS: session.get(url)
+    GS->>Req: original send()
+    Req->>Remote: HTTP GET
+    Remote-->>Req: HTTP Response
+    Req-->>GS: Response object
+    GS->>GS: Check status code
+    GS->>GS: Validate Content-Type
+    GS->>GS: Validate schema
+    GS->>GS: Sanitise control chars
+    GS-->>App: GuardedResponse
+```
+
+## Configuration precedence
+
+```mermaid
+flowchart LR
+    A["Explicit kwargs<br/>(highest priority)"] --> M[Merged Config]
+    B["guard.toml"] --> M
+    C["pyproject.toml<br/>[tool.guard]"] --> M
+    D["Built-in defaults<br/>(lowest priority)"] --> M
+    M --> ACT["guard.activate()"]
 ```
 
 ---

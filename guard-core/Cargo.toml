@@ -1,0 +1,21 @@
+[package]
+name = "guard-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core engine for Universal Runtime Guard — vulnerability scanner, API sanitiser, and error advisor."
+license = "MIT"
+repository = "https://github.com/kamrankhan78694/Universal-Runtime-Guard"
+readme = "README.md"
+keywords = ["security", "runtime", "guard", "vulnerability", "scanner"]
+categories = ["development-tools", "web-programming"]
+
+[lib]
+name = "guard_core"
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+
+[dev-dependencies]

@@ -34,19 +34,20 @@ Package version
 .. data:: __version__
    :type: str
 
-   Current release version string (e.g. ``"0.2.0"``).
+   Current release version string (e.g. ``"0.3.0"``).
 
 Development phases
 ------------------
 **Phase 1 (shipped)** — Core Python package with static vulnerability DB,
 requests monkey-patch, and heuristic error advisor.
 
-**Phase 2 (current)** — Configuration file support, type-aware API schema
+**Phase 2 (shipped)** — Configuration file support, type-aware API schema
 validation, thread/async exception coverage, ``guard audit`` CLI command,
 and structured logging output.
 
-**Phase 3 (planned)** — Port core logic to a Rust crate (``guard-core``);
-replace Python internals with PyO3 bindings; ship Node.js and Go wrappers.
+**Phase 3 (current)** — Thread-safe error counting and API guard locking,
+asyncio handler auto-installation, structured logging integration in error
+and API layers, Rust core scaffold, CI/CD, contributor infrastructure.
 
 **Phase 4 (planned)** — Live OSV advisory DB integration; SBOM export.
 
@@ -67,4 +68,4 @@ __all__ = [
     "reset_counts",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

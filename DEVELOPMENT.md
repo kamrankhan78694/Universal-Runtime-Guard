@@ -53,7 +53,7 @@ with a single `guard.activate()` call.
 
 ---
 
-## Phase 2 — Configuration & Deeper Coverage ✅ (current)
+## Phase 2 — Configuration & Deeper Coverage ✅
 
 **Goal:** Let teams configure guard via a file, extend API validation to
 types, and cover async / threaded code paths.
@@ -69,28 +69,49 @@ types, and cover async / threaded code paths.
 | Asyncio task exception coverage | `guard/error_handler.py` | ✅ |
 | `guard audit` CLI command | `guard/__main__.py` | ✅ |
 | Structured logging output (JSON) | `guard/logging.py` | ✅ |
-| 85-test pytest suite (100 % pass) | `tests/` | ✅ |
+| 85+-test pytest suite (100 % pass) | `tests/` | ✅ |
 
 ---
 
-## Phase 3 — Rust Core & Multi-Language Wrappers 📋
+## Phase 3 — Production Hardening & Rust Core 🔄 (current)
 
-**Goal:** Port the core engine to Rust and ship native wrappers for Node.js
-and Go.  Python becomes a thin PyO3 binding over the shared Rust crate.
-Each ecosystem gets a single `activate()` call published via its native
-package manager.
+**Goal:** Harden the Python implementation for production use (thread safety,
+input validation, defensive error handling, observability), scaffold the Rust
+core engine, and set up contributor infrastructure.
 
 > This follows the **Rust-core, polyglot-wrapper** architecture described in
 > [`ARCHITECTURE.md`](ARCHITECTURE.md).  The Python Phase 1 implementation
 > serves as the prototype and specification; every test becomes a contract
 > that the Rust core must satisfy.
 
-### Planned items
+### Shipped features
 
-- [ ] **`guard-core` Rust crate**
-  Implement the vulnerability scanner, API sanitiser, error advisor, and
-  embedded advisory database in Rust.  Compile to a native shared library
-  (`.so` / `.dylib` / `.dll`), a WASM module, and a standalone CLI binary.
+| Feature | Location | Status |
+|---------|----------|--------|
+| Thread-safe error counting (`threading.Lock`) | `guard/error_handler.py` | ✅ |
+| Thread-safe API guard install/uninstall (locking) | `guard/api_guard.py` | ✅ |
+| Asyncio handler auto-installation | `guard/error_handler.py` | ✅ |
+| Defensive error handling (guard never crashes app) | `guard/error_handler.py` | ✅ |
+| Input validation on `activate()` parameters | `guard/core.py` | ✅ |
+| Structured logging in error hooks | `guard/error_handler.py` | ✅ |
+| Structured logging in API guard warnings | `guard/api_guard.py` | ✅ |
+| `guard-core` Rust crate scaffold | `guard-core/Cargo.toml` | ✅ |
+| Vulnerability scanner module (Rust) | `guard-core/src/scanner.rs` | ✅ |
+| API sanitiser module (Rust) | `guard-core/src/sanitiser.rs` | ✅ |
+| Error advisor module (Rust) | `guard-core/src/advisor.rs` | ✅ |
+| Embedded advisory database (Rust) | `guard-core/src/scanner.rs` | ✅ |
+| Rust unit tests | `guard-core/src/*.rs` | ✅ |
+| Cross-platform CI (Linux, macOS, Windows) | `.github/workflows/ci.yml` | ✅ |
+| Pre-commit hook configuration | `.pre-commit-config.yaml` | ✅ |
+| CONTRIBUTING.md | `CONTRIBUTING.md` | ✅ |
+| CHANGELOG.md (Keep a Changelog) | `CHANGELOG.md` | ✅ |
+| CODE_OF_CONDUCT.md (Contributor Covenant) | `CODE_OF_CONDUCT.md` | ✅ |
+| SECURITY.md (security policy) | `SECURITY.md` | ✅ |
+| Issue templates (bug report, feature request) | `.github/ISSUE_TEMPLATE/` | ✅ |
+| PR template | `.github/PULL_REQUEST_TEMPLATE.md` | ✅ |
+| 109-test pytest suite (100% pass, 88% coverage) | `tests/` | ✅ |
+
+### Remaining items
 
 - [ ] **Python PyO3 binding**
   Replace the pure-Python internals with calls to the compiled `guard-core`
@@ -107,9 +128,6 @@ package manager.
 
 - [ ] **GitHub Actions workflow** (`.github/workflows/guard-audit.yml`)
   A reusable workflow that runs `guard audit` as a PR check.
-
-- [ ] **Pre-commit hook**
-  A `pre-commit` config entry that runs `guard audit` before every commit.
 
 ---
 

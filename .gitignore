@@ -19,8 +19,12 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
+coverage.xml
 
 # Editor directories
 .idea/
 .vscode/
 *.sw[op]
+
+# Rust build artefacts
+guard-core/target/
